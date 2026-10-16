@@ -71,7 +71,7 @@ namespace Schofield
             route = new Route(def);
             sky = new Sky(route, world);
             post.SetRoute(def.light);
-            bool phone = Application.isMobilePlatform;
+            bool phone = Application.isMobilePlatform || System.Array.IndexOf(System.Environment.GetCommandLineArgs(), "-phone") >= 0;
             terrain = new Terrain(route, world, phone ? 560 : 700);
             scatter = new Scatter(route, phone ? 0.8f : 1f, phone ? 0.6f : 1f);
             terrain.onTile = scatter.OnTile;

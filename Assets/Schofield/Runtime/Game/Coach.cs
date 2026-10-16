@@ -82,7 +82,7 @@ namespace Schofield
             driver.Play(driver.Has("Drive") ? "Drive" : "Ride", 0);
 
             // the lines from the driver's hands to each pair, and the pole to the wheelers
-            var leather = new Material(Shader.Find("Universal Render Pipeline/Unlit")); leather.SetColor("_BaseColor", new Color(0.09f, 0.06f, 0.04f));
+            var leather = new Material(Assets.Urp(false)); leather.SetColor("_BaseColor", new Color(0.09f, 0.06f, 0.04f));
             for (int i = 0; i < 6; i++) lines[i] = Line("Line", leather, 0.018f, parent);
             pole = Line("Pole", leather, 0.07f, parent);
         }

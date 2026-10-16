@@ -21,7 +21,16 @@ namespace Schofield
         public static Shader Shader(string name)
         {
             var s = Load<Shader>("Shaders/" + name);
-            return s ? s : UnityEngine.Shader.Find("Universal Render Pipeline/Unlit");
+            return s ? s : Urp(false);
+        }
+
+        /// URP's Lit or Unlit shader. Shader.Find only sees shaders the build already includes, so these come from two
+        /// materials in Resources/Shaders (URPLit, URPUnlit) that carry them into every player build.
+        public static UnityEngine.Shader Urp(bool lit)
+        {
+            var m = Load<Material>(lit ? "Shaders/URPLit" : "Shaders/URPUnlit");
+            if (m && m.shader) return m.shader;
+            return UnityEngine.Shader.Find(lit ? "Universal Render Pipeline/Lit" : "Universal Render Pipeline/Unlit");
         }
 
         static Texture2D flatNormal;
@@ -96,7 +105,7 @@ namespace Schofield
 
         public static Material Lit(Color c, float smooth = 0.1f, float metal = 0)
         {
-            var m = new Material(UnityEngine.Shader.Find("Universal Render Pipeline/Lit"));
+            var m = new Material(Urp(true));
             m.SetColor(BaseColor, c); m.SetFloat("_Smoothness", smooth); m.SetFloat("_Metallic", metal);
             return m;
         }
