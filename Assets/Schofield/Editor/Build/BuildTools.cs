@@ -16,6 +16,15 @@ namespace Schofield.EditorTools
         [MenuItem("Schofield/Configure Player Settings", priority = 20)]
         public static void ConfigurePlayer()
         {
+            // the game reads the new Input System only: with "Input Manager (old)" as the active handler, no tap,
+            // click or controller press reaches it or its buttons in a player build (the editor still works)
+            var settings = AssetDatabase.LoadAllAssetsAtPath("ProjectSettings/ProjectSettings.asset");
+            if (settings.Length > 0)
+            {
+                var so = new SerializedObject(settings[0]);
+                var ih = so.FindProperty("activeInputHandler");
+                if (ih != null && ih.intValue == 0) { ih.intValue = 1; so.ApplyModifiedProperties(); Debug.Log("[Schofield] Active input handling set to the Input System package"); }
+            }
             PlayerSettings.companyName = "vspayce";
             PlayerSettings.productName = "Schofield";
             PlayerSettings.colorSpace = ColorSpace.Linear;
@@ -57,7 +66,8 @@ namespace Schofield.EditorTools
             AppleRelease.Prepare(target);
             var report = BuildPipeline.BuildPlayer(new BuildPlayerOptions
             {
-                scenes = new[] { SceneBuilder.ScenePath }, locationPathName = path, target = target, targetGroup = group, options = BuildOptions.None,
+                scenes = new[] { SceneBuilder.ScenePath }, locationPathName = path, target = target, targetGroup = group,
+                options = System.Environment.GetEnvironmentVariable("SCHOFIELD_DEV") == "1" ? BuildOptions.Development : BuildOptions.None,   // local test builds log
             });
             var s = report.summary;
             if (s.result == BuildResult.Succeeded) Debug.Log($"[Schofield] {what}: {path} ({s.totalTime.TotalSeconds:0}s)");

@@ -88,6 +88,7 @@ namespace Schofield
             var cb = b.colors; cb.highlightedColor = new Color(1.3f, 1.15f, 0.9f); cb.selectedColor = new Color(1.4f, 1.2f, 0.9f); cb.pressedColor = new Color(0.8f, 0.7f, 0.6f); b.colors = cb;
             b.onClick.AddListener(() =>
             {
+                if (Debug.isDebugBuild) Debug.Log($"[ui] click {name} frame {Time.frameCount}");
                 if (Time.frameCount - lastClick < 3) return;     // one press, one click (the event system and the menu's own confirm can both fire)
                 lastClick = Time.frameCount;
                 Sound.I?.Play("ui_click", 0.6f); onClick();

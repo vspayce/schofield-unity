@@ -24,8 +24,20 @@ namespace Schofield
         Person attractGuard;
         float whipCd;
 
+        // development builds keep a log file the Mac can fetch from the device (Documents/diag.txt)
+        static System.IO.StreamWriter diagFile;
+        static void DiagLog(string msg, string stack, LogType type)
+        {
+            try { diagFile?.WriteLine($"{Time.realtimeSinceStartup:0.00} {type} {msg}" + (type == LogType.Exception ? "\n" + stack : "")); diagFile?.Flush(); } catch { }
+        }
+
         void Awake()
         {
+            if (Debug.isDebugBuild && diagFile == null)
+            {
+                try { diagFile = new System.IO.StreamWriter(System.IO.Path.Combine(Application.persistentDataPath, "diag.txt"), false); Application.logMessageReceived += DiagLog; }
+                catch { }
+            }
             Application.targetFrameRate = 60;
             QualitySettings.vSyncCount = 0;
             cam = Camera.main;
@@ -74,7 +86,7 @@ namespace Schofield
             {
                 ScreenCapture.CaptureScreenshot(args[k + 1]); shotStage = 1;
                 var mod = UnityEngine.EventSystems.EventSystem.current ? UnityEngine.EventSystems.EventSystem.current.GetComponent<UnityEngine.InputSystem.UI.InputSystemUIInputModule>() : null;
-                Debug.Log($"[shot] ui module={(mod ? "yes" : "no")} actions={(mod && mod.actionsAsset ? mod.actionsAsset.name : "NONE")} submit={(mod && mod.submit != null && mod.submit.action != null)} selected={UnityEngine.EventSystems.EventSystem.current?.currentSelectedGameObject?.name}");
+                Debug.Log($"[shot] ui module={(mod ? "yes" : "no")} actions={(mod && mod.actionsAsset ? mod.actionsAsset.name : "NONE")} submit={(mod && mod.submit != null && mod.submit.action != null && mod.submit.action.enabled)} point={(mod && mod.point != null && mod.point.action != null && mod.point.action.enabled)} click={(mod && mod.leftClick != null && mod.leftClick.action != null && mod.leftClick.action.enabled)} selected={UnityEngine.EventSystems.EventSystem.current?.currentSelectedGameObject?.name}");
                 foreach (var r in FindObjectsByType<Renderer>(FindObjectsSortMode.None))
                 {
                     var n = r.transform.root.name;
@@ -84,6 +96,23 @@ namespace Schofield
                 }
             }
             else if (shotStage == 1 && shotT > 11) { shotStage = 2; Application.Quit(); }
+        }
+
+        // development builds: where a tap lands, and what the menus see under it
+        void UiDiag()
+        {
+            var ts = UnityEngine.InputSystem.Touchscreen.current; var ms = UnityEngine.InputSystem.Mouse.current;
+            Vector2? at = null;
+            if (ts != null && ts.primaryTouch.press.wasPressedThisFrame) at = ts.primaryTouch.position.ReadValue();
+            else if (ms != null && ms.leftButton.wasPressedThisFrame) at = ms.position.ReadValue();
+            var g = UnityEngine.InputSystem.Gamepad.current;
+            if (g != null && g.buttonSouth.wasPressedThisFrame) Debug.Log($"[diag] pad A on {g.name}");
+            if (at == null) return;
+            var es = UnityEngine.EventSystems.EventSystem.current;
+            var hits = new System.Collections.Generic.List<UnityEngine.EventSystems.RaycastResult>();
+            if (es) es.RaycastAll(new UnityEngine.EventSystems.PointerEventData(es) { position = at.Value }, hits);
+            var mod = es ? es.currentInputModule : null;
+            Debug.Log($"[diag] press at {at.Value} screen {Screen.width}x{Screen.height} module={(mod ? mod.GetType().Name : "none")} menus={menus.Open} hits={string.Join(", ", hits.ConvertAll(h => h.gameObject.name + "@" + h.module?.GetType().Name))}");
         }
 
         void BuildWorld(int i, string m)
@@ -254,6 +283,7 @@ namespace Schofield
             float dt = rdt * k;
             time += dt;
             DebugShot();
+            if (Debug.isDebugBuild) UiDiag();
             // menus: a controller's A (or Enter) presses the highlighted button even if the event system missed it,
             // and the highlight is never lost
             if (menus.Open && UnityEngine.EventSystems.EventSystem.current)
