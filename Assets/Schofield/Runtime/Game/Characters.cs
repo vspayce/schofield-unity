@@ -67,9 +67,14 @@ namespace Schofield
         public static readonly string[] RiderLooksMountain = { "mountain", "mountain", "outlaw", "reb", "sugarloaf", "pearl" };
         public static readonly string[] GunmanLooks = { "outlaw", "reb", "mountain", "sugarloaf", "pearl", "outlaw" };
 
+        static readonly Dictionary<GameObject, string> modelOf = new Dictionary<GameObject, string>();
+        /// which GLB a spawned character came from (for its Mecanim clips)
+        public static string ModelOf(GameObject root) => root && modelOf.TryGetValue(root, out var m) ? m : null;
+
         static GameObject Spawn(GameObject prefab, string name)
         {
             var go = Object.Instantiate(prefab);
+            var model = Assets.ModelName(prefab); if (model != null) modelOf[go] = model;
             go.name = name;
             foreach (var r in go.GetComponentsInChildren<Renderer>(true))
             {

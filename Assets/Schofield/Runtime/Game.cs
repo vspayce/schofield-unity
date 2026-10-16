@@ -74,7 +74,7 @@ namespace Schofield
         }
 
         // testing on a Mac: -shot <file.png> takes a picture of the title scene after a few seconds and quits
-        float shotT; int shotStage;
+        float shotT; int shotStage, shotFrames;
         void DebugShot()
         {
             if (shotStage > 1) return;
@@ -95,6 +95,7 @@ namespace Schofield
                     Debug.Log($"[shot] {r.transform.root.name}/{r.name} {r.GetType().Name} en={r.enabled} vis={r.isVisible} b={r.bounds.center}/{r.bounds.size} mat={(m ? m.name : "null")} sh={(m && m.shader ? m.shader.name + (m.shader.isSupported ? "" : " UNSUPPORTED") : "null")} q={(m ? m.renderQueue : 0)} cam={cam.transform.position}");
                 }
             }
+            else if (shotStage == 1 && shotFrames < 8) { shotFrames++; ShotProbe("update"); ScreenCapture.CaptureScreenshot(args[k + 1].Replace(".png", "_" + shotFrames + ".png")); }   // consecutive frames, to see flicker
             else if (shotStage == 1 && shotT > 11) { shotStage = 2; Application.Quit(); }
         }
 
@@ -113,6 +114,17 @@ namespace Schofield
             if (es) es.RaycastAll(new UnityEngine.EventSystems.PointerEventData(es) { position = at.Value }, hits);
             var mod = es ? es.currentInputModule : null;
             Debug.Log($"[diag] press at {at.Value} screen {Screen.width}x{Screen.height} module={(mod ? mod.GetType().Name : "none")} menus={menus.Open} hits={string.Join(", ", hits.ConvertAll(h => h.gameObject.name + "@" + h.module?.GetType().Name))}");
+        }
+
+        void ShotProbe(string when)
+        {
+            var h0 = coach.TeamRoot(0);
+            var rends = coach.Root.GetComponentsInChildren<Renderer>();
+            string first = rends.Length > 0 ? rends[0].bounds.center.ToString("F1") : "-";
+            var hr = h0 ? h0.GetComponentInChildren<SkinnedMeshRenderer>() : null;
+            string bones = "";
+            if (hr) { bones = $"skin={hr.name} rootBone={(hr.rootBone ? hr.rootBone.name : "-")} rb={(hr.rootBone ? (hr.rootBone.position - h0.position).ToString("F2") : "-")} b5={(hr.bones.Length > 5 && hr.bones[5] ? (hr.bones[5].position - h0.position).ToString("F2") : "-")} anim={(h0.GetComponentInChildren<Animation>() ? "legacy" + (h0.GetComponentInChildren<Animation>().enabled ? "" : "(off)") + " clips=" + h0.GetComponentInChildren<Animation>().GetClipCount() : "mecanim")} lossy={hr.rootBone?.lossyScale:F2} par={hr.rootBone?.parent?.localPosition:F2}"; }
+            Debug.Log($"[probe] {rends[0].name} {bones} f{Time.frameCount} {when} s={coach.s:F2} pos={coach.pos:F1} root={coach.Root.transform.position:F1} rend0={first} horse0={(h0 ? h0.position.ToString("F1") : "-")} cam={cam.transform.position:F1}");
         }
 
         void BuildWorld(int i, string m)
@@ -321,6 +333,7 @@ namespace Schofield
             if (route == null) return;
             float rdt = Mathf.Min(0.05f, Time.unscaledDeltaTime);
             coach.LateUpdate();
+            if (shotStage == 1 && shotFrames < 8) ShotProbe("late");
             if (mode == "ride" && player != null)
             {
                 enemies.LateUpdate();

@@ -25,6 +25,31 @@ namespace Schofield
         public Anim(GameObject root)
         {
             legacy = root.GetComponentInChildren<Animation>(true);
+            // glTFast imports these models' clips for Mecanim; an Animation component playing non-legacy clips
+            // writes garbage into the bones on most frames (the models flicker and fly apart). Play those clips
+            // through the Playables mixer below instead.
+            var fromLegacy = new List<AnimationClip>();
+            GameObject animHost = null;
+            if (legacy)
+            {
+                bool allLegacy = true;
+                var names = new List<string>();
+                foreach (AnimationState st in legacy) { if (st.clip) { names.Add(st.name); if (!st.clip.legacy) { fromLegacy.Add(st.clip); allLegacy = false; } } }
+                // legacy clips: use their Mecanim copies (Resources/Anims/<model>/) when the model has them
+                var model = Characters.ModelOf(root);
+                if (allLegacy && model != null)
+                {
+                    var copies = new List<AnimationClip>();
+                    foreach (var n in names) { var c = Assets.Clip(model, n); if (c) copies.Add(c); }
+                    if (copies.Count == names.Count && copies.Count > 0) { fromLegacy = copies; allLegacy = false; }
+                }
+                if (!allLegacy || names.Count == 0)
+                {
+                    animHost = legacy.gameObject;
+                    legacy.Stop(); legacy.enabled = false; Object.Destroy(legacy);
+                    legacy = null;
+                }
+            }
             if (legacy)
             {
                 legacy.cullingType = AnimationCullingType.AlwaysAnimate;
@@ -39,11 +64,13 @@ namespace Schofield
                     else { st.layer = 0; st.wrapMode = WrapMode.Loop; }
                 }
                 legacy.Stop();
+                if (System.Array.IndexOf(System.Environment.GetCommandLineArgs(), "-noanim") >= 0) legacy.enabled = false;   // testing
                 return;
             }
             var animator = root.GetComponentInChildren<Animator>(true);
-            if (!animator) { animator = root.AddComponent<Animator>(); }
+            if (!animator) { animator = (animHost ? animHost : root).AddComponent<Animator>(); }
             var clips = animator.runtimeAnimatorController ? animator.runtimeAnimatorController.animationClips : new AnimationClip[0];
+            if (clips.Length == 0) clips = fromLegacy.ToArray();
             animator.runtimeAnimatorController = null;
             animator.cullingMode = AnimatorCullingMode.AlwaysAnimate;
             graph = PlayableGraph.Create("anim");
@@ -83,7 +110,7 @@ namespace Schofield
                 var st = legacy[name];
                 st.wrapMode = once ? WrapMode.ClampForever : WrapMode.Loop;
                 st.speed = timeScale;
-                if (fade > 0) legacy.CrossFade(name, fade, PlayMode.StopSameLayer); else legacy.Play(name, PlayMode.StopSameLayer);
+                if (fade > 0 && System.Array.IndexOf(System.Environment.GetCommandLineArgs(), "-nofade") < 0) legacy.CrossFade(name, fade, PlayMode.StopSameLayer); else legacy.Play(name, PlayMode.StopSameLayer);
                 st.time = phase >= 0 ? phase * st.length : 0;
                 return;
             }

@@ -52,6 +52,17 @@ namespace Schofield
 
         /// the imported GLB's prefab (glTFast's main asset), or null
         public static GameObject Model(string name) => Load<GameObject>("Models/" + name);
+
+        /// the model (GLB file name) a loaded prefab came from, or null
+        public static string ModelName(GameObject prefab)
+        {
+            if (!prefab) return null;
+            foreach (var kv in cache) if (kv.Value == prefab && kv.Key.StartsWith("Models/")) return kv.Key.Substring(7);
+            return null;
+        }
+
+        /// the Mecanim copy of a model's clip (made in the editor: Schofield/Convert Model Clips for Mecanim)
+        public static AnimationClip Clip(string model, string clip) => Resources.Load<AnimationClip>($"Anims/{model}/{clip}");
         public static AudioClip Clip(string name) => Load<AudioClip>("Audio/" + name);
         public static Sprite Sprite(string name) => Load<Sprite>("UI/" + name);
         public static Font Font(string name) => Load<Font>("Fonts/" + name);

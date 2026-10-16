@@ -165,6 +165,9 @@ namespace Schofield
             driver.Update(dt);
         }
 
+        public GameObject Root => root;
+        public Transform TeamRoot(int i) => i < team.Count ? team[i].h.root.transform : null;
+
         /// after animation: hang the lines between the driver's hand and the team
         public void LateUpdate()
         {
