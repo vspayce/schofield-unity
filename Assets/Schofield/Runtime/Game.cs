@@ -61,6 +61,29 @@ namespace Schofield
             route = null;
         }
 
+        // testing on a Mac: -shot <file.png> takes a picture of the title scene after a few seconds and quits
+        float shotT; int shotStage;
+        void DebugShot()
+        {
+            if (shotStage > 1) return;
+            var args = System.Environment.GetCommandLineArgs();
+            int k = System.Array.IndexOf(args, "-shot");
+            if (k < 0 || k + 1 >= args.Length) { shotStage = 2; return; }
+            shotT += Time.unscaledDeltaTime;
+            if (shotStage == 0 && shotT > 9)
+            {
+                ScreenCapture.CaptureScreenshot(args[k + 1]); shotStage = 1;
+                foreach (var r in FindObjectsByType<Renderer>(FindObjectsSortMode.None))
+                {
+                    var n = r.transform.root.name;
+                    if (n == "World" && !r.transform.IsChildOf(world)) continue;
+                    var m = r.sharedMaterial;
+                    Debug.Log($"[shot] {r.transform.root.name}/{r.name} {r.GetType().Name} en={r.enabled} vis={r.isVisible} b={r.bounds.center}/{r.bounds.size} mat={(m ? m.name : "null")} sh={(m && m.shader ? m.shader.name + (m.shader.isSupported ? "" : " UNSUPPORTED") : "null")} q={(m ? m.renderQueue : 0)} cam={cam.transform.position}");
+                }
+            }
+            else if (shotStage == 1 && shotT > 11) { shotStage = 2; Application.Quit(); }
+        }
+
         void BuildWorld(int i, string m)
         {
             DisposeWorld();
@@ -228,6 +251,16 @@ namespace Schofield
             Time.timeScale = Mathf.Max(0.01f, k);
             float dt = rdt * k;
             time += dt;
+            DebugShot();
+            // menus: a controller's A (or Enter) presses the highlighted button even if the event system missed it,
+            // and the highlight is never lost
+            if (menus.Open && UnityEngine.EventSystems.EventSystem.current)
+            {
+                var es = UnityEngine.EventSystems.EventSystem.current;
+                var sel = es.currentSelectedGameObject;
+                if (sel == null || !sel.activeInHierarchy) menus.SelectFirst();
+                else if (GameInput.Confirm() && sel.TryGetComponent<UnityEngine.UI.Button>(out var btn) && btn.interactable) btn.onClick.Invoke();
+            }
             if (route == null) return;
             var inp = input.Consume();
             if (inp.pause && mode == "ride") { Pause(); return; }

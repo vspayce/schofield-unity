@@ -66,6 +66,19 @@ namespace Schofield
             return t;
         }
 
+        static int lastClick = -10;
+
+        static Sprite fadeRight;
+        /// A soft shade that is darkest at the left edge and fades out to the right (behind the title menu).
+        public static Sprite FadeRight()
+        {
+            if (fadeRight) return fadeRight;
+            var t = new Texture2D(128, 1, TextureFormat.RGBA32, false) { wrapMode = TextureWrapMode.Clamp };
+            for (int x = 0; x < 128; x++) { float a = 1 - x / 127f; t.SetPixel(x, 0, new Color(1, 1, 1, a * a * (3 - 2 * a))); }
+            t.Apply();
+            return fadeRight = Sprite.Create(t, new Rect(0, 0, 128, 1), new Vector2(0.5f, 0.5f));
+        }
+
         public static Button Btn(string name, Transform parent, Vector2 anchor, Vector2 pos, Vector2 size, string label, System.Action onClick, int fontSize = 30)
         {
             var im = Img(name, parent, anchor, pos, size, null, new Color(0.17f, 0.11f, 0.07f, 0.92f));
@@ -73,7 +86,12 @@ namespace Schofield
             var ol = im.gameObject.AddComponent<Outline>(); ol.effectColor = Gold; ol.effectDistance = new Vector2(2, -2);
             var b = im.gameObject.AddComponent<Button>();
             var cb = b.colors; cb.highlightedColor = new Color(1.3f, 1.15f, 0.9f); cb.selectedColor = new Color(1.4f, 1.2f, 0.9f); cb.pressedColor = new Color(0.8f, 0.7f, 0.6f); b.colors = cb;
-            b.onClick.AddListener(() => { Sound.I?.Play("ui_click", 0.6f); onClick(); });
+            b.onClick.AddListener(() =>
+            {
+                if (Time.frameCount - lastClick < 3) return;     // one press, one click (the event system and the menu's own confirm can both fire)
+                lastClick = Time.frameCount;
+                Sound.I?.Play("ui_click", 0.6f); onClick();
+            });
             var t = Txt("Label", im.transform, new Vector2(0.5f, 0.5f), Vector2.zero, size, label, fontSize, Paper, TextAnchor.MiddleCenter, true);
             return b;
         }

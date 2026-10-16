@@ -51,13 +51,16 @@ namespace Schofield
             if (dim) UIKit.Img("Dim", panel, new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(4000, 4000), null, new Color(0.05f, 0.03f, 0.02f, 0.62f));
             else if (left)
             {
-                var shade = UIKit.Img("Shade", panel, new Vector2(0, 0.5f), Vector2.zero, new Vector2(560, 4000), null, new Color(0.05f, 0.03f, 0.02f, 0.55f));
-                shade.rectTransform.pivot = new Vector2(0, 0.5f);
+                var shade = UIKit.Img("Shade", panel, new Vector2(0, 0.5f), Vector2.zero, new Vector2(820, 4000), UIKit.FadeRight(), new Color(0.05f, 0.03f, 0.02f, 0.75f));
+                shade.rectTransform.pivot = new Vector2(0, 0.5f); shade.preserveAspect = false;
             }
             return UIKit.Safe(panel);
         }
 
         void Select(Button b) { if (b) EventSystem.current?.SetSelectedGameObject(b.gameObject); }
+
+        /// Highlight the panel's first button (a controller needs something selected to move from).
+        public void SelectFirst() { if (panel) Select(panel.GetComponentInChildren<Button>()); }
 
         public void Title()
         {

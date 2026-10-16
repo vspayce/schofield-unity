@@ -21,5 +21,21 @@ namespace Schofield.EditorTools
             }
             AssetDatabase.SaveAssets();
         }
+
+        /// glTFast picks its shaders when it imports a GLB: imported before URP was set up, the models got the
+        /// built-in pipeline's glTF shaders, which URP draws as nothing (only their shadows). Import them again.
+        [MenuItem("Schofield/Reimport Models for URP", priority = 22)]
+        public static void ReimportModels()
+        {
+            foreach (var guid in AssetDatabase.FindAssets("", new[] { "Assets/Schofield/Resources/Models" }))
+            {
+                var path = AssetDatabase.GUIDToAssetPath(guid);
+                if (path.EndsWith(".glb") || path.EndsWith(".gltf")) AssetDatabase.ImportAsset(path, ImportAssetOptions.ForceUpdate);
+            }
+            foreach (var guid in AssetDatabase.FindAssets("t:Material", new[] { "Assets/Schofield/Resources/Models" }))
+                Debug.Log("[Reimport] " + AssetDatabase.GUIDToAssetPath(guid));
+            var m = AssetDatabase.LoadAllAssetsAtPath("Assets/Schofield/Resources/Models/stagecoach.glb");
+            foreach (var o in m) if (o is Material mat) Debug.Log("[Reimport] stagecoach material " + mat.name + " -> " + mat.shader.name);
+        }
     }
 }

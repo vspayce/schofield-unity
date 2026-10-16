@@ -11,13 +11,15 @@ namespace Schofield.EditorTools
         public static void Build()
         {
             ShaderCarriers.Make();
+            if (System.Array.IndexOf(System.Environment.GetCommandLineArgs(), "-reimport") >= 0) ShaderCarriers.ReimportModels();
             var nb = UnityEditor.Build.NamedBuildTarget.Standalone;
             var was = PlayerSettings.GetScriptingBackend(nb);
             PlayerSettings.SetScriptingBackend(nb, ScriptingImplementation.Mono2x);
+            bool bg = PlayerSettings.runInBackground; PlayerSettings.runInBackground = true;   // keeps playing while another app has focus
             var scenes = new[] { "Assets/Schofield/Scenes/Main.unity" };
             var r = BuildPipeline.BuildPlayer(new BuildPlayerOptions { scenes = scenes, target = BuildTarget.StandaloneOSX,
                 locationPathName = Path.GetFullPath("Builds/macDebug/Schofield.app"), options = BuildOptions.Development });
-            PlayerSettings.SetScriptingBackend(nb, was);
+            PlayerSettings.SetScriptingBackend(nb, was); PlayerSettings.runInBackground = bg;
             Debug.Log("[DebugMac] " + r.summary.result + " " + r.summary.totalErrors);
         }
     }
