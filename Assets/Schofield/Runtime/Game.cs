@@ -73,6 +73,8 @@ namespace Schofield
             if (shotStage == 0 && shotT > 9)
             {
                 ScreenCapture.CaptureScreenshot(args[k + 1]); shotStage = 1;
+                var mod = UnityEngine.EventSystems.EventSystem.current ? UnityEngine.EventSystems.EventSystem.current.GetComponent<UnityEngine.InputSystem.UI.InputSystemUIInputModule>() : null;
+                Debug.Log($"[shot] ui module={(mod ? "yes" : "no")} actions={(mod && mod.actionsAsset ? mod.actionsAsset.name : "NONE")} submit={(mod && mod.submit != null && mod.submit.action != null)} selected={UnityEngine.EventSystems.EventSystem.current?.currentSelectedGameObject?.name}");
                 foreach (var r in FindObjectsByType<Renderer>(FindObjectsSortMode.None))
                 {
                     var n = r.transform.root.name;

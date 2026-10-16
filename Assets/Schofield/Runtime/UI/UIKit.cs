@@ -100,6 +100,9 @@ namespace Schofield
         {
             if (EventSystem.current) return;
             var go = new GameObject("EventSystem", typeof(EventSystem), typeof(InputSystemUIInputModule));
+            // a module added at run time has no actions in a player build (only the editor fills them in), so no
+            // click, tap or controller press ever reached a button: give it the default UI actions
+            go.GetComponent<InputSystemUIInputModule>().AssignDefaultActions();
             Object.DontDestroyOnLoad(go);
         }
 
