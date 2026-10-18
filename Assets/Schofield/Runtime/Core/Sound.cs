@@ -22,6 +22,12 @@ namespace Schofield
 #if UNITY_IOS && !UNITY_EDITOR
         [DllImport("__Internal")] static extern void SC_PlaybackAudio();
 #endif
+#if (UNITY_IOS || UNITY_TVOS) && !UNITY_EDITOR
+        [DllImport("__Internal")] static extern string SC_AudioReport();
+#endif
+#if UNITY_TVOS && !UNITY_EDITOR
+        [DllImport("__Internal")] static extern void SC_TVAudio();
+#endif
 
         public static Sound Create(Transform listener)
         {
@@ -31,12 +37,21 @@ namespace Schofield
             I.muffle = listener.gameObject.AddComponent<AudioLowPassFilter>();
             I.muffle.cutoffFrequency = 1400;
             I.muffle.enabled = false;            // only in slow-mo: a 22 kHz cutoff is above Nyquist at the 24 kHz the Apple TV runs at, and silences everything
-            // Apple TV can come up at 24 kHz; ask for 48 kHz (the session may still decide otherwise)
+#if UNITY_TVOS && !UNITY_EDITOR
+            // Apple TV (often out through AirPlay to HomePods): playback session, stereo, then reopen the engine on it
+            try { SC_TVAudio(); } catch { }
+            {
+                var want = AudioSettings.GetConfiguration(); want.sampleRate = 48000; want.speakerMode = AudioSpeakerMode.Stereo;
+                AudioSettings.Reset(want);
+            }
+#else
+            // ask for 48 kHz if a device came up lower (the session may still decide otherwise)
             if (AudioSettings.outputSampleRate < 44100)
             {
                 var want = AudioSettings.GetConfiguration(); want.sampleRate = 48000;
                 AudioSettings.Reset(want);
             }
+#endif
             I.musicVolume = PlayerPrefs.GetFloat("schofield.music", 0.55f);
             I.sfxVolume = PlayerPrefs.GetFloat("schofield.sfx", 1f);
 #if UNITY_IOS && !UNITY_EDITOR
@@ -45,7 +60,7 @@ namespace Schofield
             try { SC_PlaybackAudio(); } catch { }
 #endif
             for (int i = 0; i < 28; i++) I.NewSource();
-            if (Debug.isDebugBuild) I.StartCoroutine(I.Probe());
+            if (Debug.isDebugBuild) { listener.gameObject.AddComponent<DspTap>(); I.StartCoroutine(I.Probe()); }
             var cfg = AudioSettings.GetConfiguration();
             var test = Assets.Clip("whip_crack");
             Debug.Log($"[audio] rate={AudioSettings.outputSampleRate} speaker={cfg.speakerMode} driver={AudioSettings.driverCapabilities} dsp={cfg.dspBufferSize} paused={AudioListener.pause} vol={AudioListener.volume} music={I.musicVolume} sfx={I.sfxVolume} clip={(test ? test.loadState + "/" + test.length.ToString("F2") + "s/" + test.channels + "ch" : "MISSING")}");
@@ -144,7 +159,24 @@ namespace Schofield
             var sb = new System.Text.StringBuilder();
             sb.Append($"[audio] probe rate={AudioSettings.outputSampleRate} dsp {d0:F2}->{AudioSettings.dspTime:F2} paused={AudioListener.pause} vol={AudioListener.volume} listeners={FindObjectsByType<AudioListener>(FindObjectsSortMode.None).Length}");
             foreach (var kv in loops) if (kv.Value.src) sb.Append($" | {kv.Key} playing={kv.Value.src.isPlaying} t={kv.Value.src.time:F1} vol={kv.Value.src.volume:F2}");
+            // where does the signal die? the decoded clip, the source's output, the listener's DSP chain
+            foreach (var kv in loops)
+            {
+                var src = kv.Value.src; if (!src || !src.clip) continue;
+                var cb = new float[2048]; float cp = 0; bool got = src.clip.GetData(cb, src.clip.samples / 3);
+                foreach (var v in cb) cp = Mathf.Max(cp, Mathf.Abs(v));
+                var ob = new float[1024]; float op = 0; src.GetOutputData(ob, 0); foreach (var v in ob) op = Mathf.Max(op, Mathf.Abs(v));
+                sb.Append($" | {kv.Key} clip={src.clip.loadType}/{src.clip.loadState} data={got}:{cp:F3} srcOut={op:F4} mute={src.mute} prio={src.priority} virt={src.isVirtual}");
+            }
+            sb.Append($" | dspCalls={DspTap.calls} dspIn={DspTap.peak:F4}");
+            // is the mixer actually putting signal out?
+            var buf = new float[1024]; float peak = 0;
+            AudioListener.GetOutputData(buf, 0); foreach (var v in buf) peak = Mathf.Max(peak, Mathf.Abs(v));
+            sb.Append($" | mixPeak={peak:F4}");
             Debug.Log(sb.ToString());
+#if (UNITY_IOS || UNITY_TVOS) && !UNITY_EDITOR
+            try { Debug.Log("[audio] session " + SC_AudioReport()); } catch (System.Exception e) { Debug.Log("[audio] session report failed " + e.Message); }
+#endif
         }
 
         /// the output device changed (HDMI renegotiated, headphones in or out): restart the engine on the new
@@ -177,5 +209,12 @@ namespace Schofield
             }
             foreach (var k in dead) loops.Remove(k);
         }
+    }
+
+    /// debug: counts DSP callbacks on the listener and the loudest sample reaching it
+    public class DspTap : MonoBehaviour
+    {
+        public static int calls; public static float peak;
+        void OnAudioFilterRead(float[] data, int ch) { calls++; for (int i = 0; i < data.Length; i++) { float a = data[i] < 0 ? -data[i] : data[i]; if (a > peak) peak = a; } }
     }
 }
