@@ -62,6 +62,14 @@ namespace Schofield
             { "pearl", L(new[] { "Body_Female", "Hat_Slouch" }, ("Hat_Slouch", 1.1f, 0.96f, 0.8f)) },
             { "bart", L(new[] { "Body_Man", "Coat_Guard", "Hat_Bowler", "Mask_Sack" }, ("Body_Man", 0.5f, 0.5f, 0.55f), ("Coat_Guard", 1.04f, 1.04f, 1.02f)) },
             { "lawman", L(new[] { "Body_Man", "Coat_Guard", "Hat_Lawman" }, ("Coat_Guard", 0.22f, 0.21f, 0.21f)) },
+            { "hickok", L(new[] { "Body_Hickok", "Coat_Guard", "Hat_Hickok", "Colts_Hickok" }, ("Coat_Guard", 0.09f, 0.087f, 0.087f)) },
+            { "bandit", L(new[] { "Body_Man", "Hat_Wide", "Bandana_Man", "Coat_Guard" }, ("Coat_Guard", 0.36f, 0.31f, 0.27f)) },
+            { "bandit2", L(new[] { "Body_Man", "Hat_Bowler", "Bandana_Man", "Serape" }) },
+            { "bandit3", L(new[] { "Body_Man", "Hat_Wide", "Serape" }) },
+            { "gunman", L(new[] { "Body_Man", "Hat_Wide", "Coat_Guard", "Bandana_Man" }, ("Coat_Guard", 0.5f, 0.44f, 0.38f)) },
+            { "woman_slate", L(new[] { "Body_Woman", "Dress", "Bonnet" }, ("Dress", 0.55f, 0.6f, 0.72f), ("Bonnet", 0.9f, 0.9f, 0.95f)) },
+            { "woman_plum", L(new[] { "Body_Woman", "Dress", "Hat_Lady" }, ("Dress", 0.72f, 0.4f, 0.45f), ("Hat_Lady", 0.55f, 0.35f, 0.4f)) },
+            { "woman_calico", L(new[] { "Body_Woman", "Dress", "Bonnet" }, ("Dress", 0.95f, 0.82f, 0.62f), ("Bonnet", 1.0f, 0.95f, 0.85f)) },
         };
         public static readonly string[] RiderLooks = { "outlaw", "sugarloaf", "vaquero", "reb", "mountain", "pearl", "outlaw", "reb" };
         public static readonly string[] RiderLooksMountain = { "mountain", "mountain", "outlaw", "reb", "sugarloaf", "pearl" };
@@ -117,6 +125,8 @@ namespace Schofield
         }
 
         // ------------------------------------------------------------------- human
+        public static bool HasLook(string variant) => Looks.ContainsKey(variant);
+
         public static Person CreateRider(string variant, Color? tint = null)
         {
             var prefab = Assets.Model("rider");
@@ -174,11 +184,45 @@ namespace Schofield
                 g.barrels = Assets.Find(g.root.transform, name + "_Barrels");
                 return g;
             }
+            if (name == "Gatling") return Gatling();
             g.root = GameObject.CreatePrimitive(PrimitiveType.Cube);
             Object.Destroy(g.root.GetComponent<Collider>());
             float len = name == "Schofield" ? 0.3f : 0.9f;
             g.root.transform.localScale = new Vector3(0.04f, 0.06f, len);
             g.muzzle = new GameObject("Muzzle").transform; g.muzzle.SetParent(g.root.transform, false); g.muzzle.localPosition = new Vector3(0, 0, 0.5f);
+            return g;
+        }
+
+        // Six-barrel Gatling built from primitives (no GLB), held at the grip like the other guns (+Z = muzzle)
+        static Gun Gatling()
+        {
+            var g = new Gun { root = new GameObject("Gatling") };
+            Material brass = Assets.Lit(MathX.Hex("#b08a3e"), 0.6f, 0.85f), steel = Assets.Lit(MathX.Hex("#2b2c30"), 0.55f, 0.8f), wood = Assets.Lit(MathX.Hex("#5a3219"), 0.3f);
+            GameObject Part(PrimitiveType t, Transform parent, Vector3 pos, Vector3 scale, Material m, bool alongZ)
+            {
+                var o = GameObject.CreatePrimitive(t);
+                Object.Destroy(o.GetComponent<Collider>());
+                o.transform.SetParent(parent, false);
+                o.transform.localPosition = pos; o.transform.localScale = scale;
+                if (alongZ) o.transform.localRotation = Quaternion.Euler(90, 0, 0);
+                o.GetComponent<Renderer>().sharedMaterial = m;
+                return o;
+            }
+            var r = g.root.transform;
+            // (a Unity cylinder is 2 units tall along Y, radius 0.5)
+            Part(PrimitiveType.Cylinder, r, new Vector3(0, 0.08f, 0.1f), new Vector3(0.18f, 0.15f, 0.18f), brass, true);
+            var barrels = new GameObject("Gatling_Barrels").transform; barrels.SetParent(r, false); barrels.localPosition = new Vector3(0, 0.08f, 0.25f);
+            for (int i = 0; i < 6; i++)
+            {
+                float a = i / 6f * Mathf.PI * 2;
+                Part(PrimitiveType.Cylinder, barrels, new Vector3(Mathf.Cos(a) * 0.05f, Mathf.Sin(a) * 0.05f, 0.37f), new Vector3(0.028f, 0.375f, 0.028f), steel, true);
+            }
+            foreach (float z in new[] { 0.2f, 0.5f, 0.72f }) Part(PrimitiveType.Cylinder, barrels, new Vector3(0, 0, z), new Vector3(0.14f, 0.015f, 0.14f), brass, true);
+            Part(PrimitiveType.Cube, r, new Vector3(0, 0.2f, 0.08f), new Vector3(0.05f, 0.14f, 0.08f), brass, false);
+            Part(PrimitiveType.Cube, r, new Vector3(0.11f, 0.08f, 0.02f), new Vector3(0.02f, 0.02f, 0.12f), steel, false);
+            Part(PrimitiveType.Cube, r, new Vector3(0, 0, -0.02f), new Vector3(0.04f, 0.12f, 0.06f), wood, false);
+            g.barrels = barrels;
+            g.muzzle = new GameObject("Muzzle_Gatling").transform; g.muzzle.SetParent(r, false); g.muzzle.localPosition = new Vector3(0, 0.08f, 1.0f);
             return g;
         }
 

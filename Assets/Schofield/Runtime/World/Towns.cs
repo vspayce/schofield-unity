@@ -14,6 +14,13 @@ namespace Schofield
         static readonly Dictionary<string, float> Depth = new Dictionary<string, float>
         { { "Saloon", 16.6f }, { "GeneralStore", 15.7f }, { "Sheriff", 13.4f }, { "Bank", 13.2f }, { "Hotel", 15.6f }, { "Livery", 17.4f }, { "Shack", 5.3f }, { "Church", 16.6f }, { "WaterTower", 5.8f }, { "Gallows", 3.1f }, { "CourtHouse", 17.5f } };
 
+        public class Lot { public string name; public float s, side, off, w, y, yaw, P, deck; public Transform b; public bool terminus; }
+        static readonly Dictionary<string, (float P, float deck)> Porch = new Dictionary<string, (float, float)>
+        { { "Saloon", (2.6f, 0.4f) }, { "GeneralStore", (2.6f, 0.4f) }, { "Sheriff", (2.4f, 0.4f) }, { "Bank", (1.2f, 0.3f) }, { "Hotel", (2.6f, 0.4f) } };
+        List<Lot> lots;            // where Place records what it builds (start / end town), or null
+        public readonly List<Lot> startLots = new List<Lot>(), endLots = new List<Lot>();
+        Townsfolk folk;
+
         readonly Route route;
         readonly Transform root;
         public readonly List<Bounds> solids = new List<Bounds>();
@@ -28,11 +35,17 @@ namespace Schofield
             // on a gorge ledge the river side is a drop: build on the other side only
             float wet = route.def.gorge != null ? route.riverSide : 0;
             float pick = rnd.Next() < 0.5f ? -1 : 1, courtSide = wet != 0 ? -wet : pick;
+            lots = startLots;
             Street(20, 110, rnd, 0.8f, false, (57, 75, courtSide), wet);
             Court(66, courtSide, false, hours);
+            lots = endLots;
             Street(L - 130, L - 10, rnd, 0.8f, false, (0, 0, 0), wet);
             Court(L + 24, 0, true, hours + L / 12 / 3600);
+            lots = null;
             if (route.HasGhostTown) { var T = route.TownRange; Street(T.x, T.y, rnd, 1, true, (0, 0, 0)); }
+            folk = new Townsfolk(this, route, root, rnd);
+            folk.Populate(startLots, 20, 110);
+            folk.Populate(endLots, L - 130, L - 10);
         }
 
         static float ClockHours(string str)
@@ -91,6 +104,11 @@ namespace Schofield
             b.transform.rotation = Quaternion.Euler(0, yaw * Mathf.Rad2Deg, 0);
             if (ghost) foreach (var r in b.GetComponentsInChildren<Renderer>()) Assets.Tint(r, new Color(0.85f, 0.85f, 0.85f));
             solids.Add(BoundsOf(b));
+            if (lots != null && extra == 0)
+            {
+                var pr = Porch.TryGetValue(name, out var pp) ? pp : (0f, 0f);
+                lots.Add(new Lot { name = name, s = s, side = side, off = off, w = w * 2, y = at.y, yaw = yaw, P = pr.Item1, deck = pr.Item2, b = b.transform });
+            }
             if (ghost)
                 foreach (var t in b.GetComponentsInChildren<Transform>())
                     if (t.name.StartsWith("Spawn_")) spawns.Add((t.position, MathX.FromHeading(yaw), s, t.name.Contains("Roof")));
@@ -110,6 +128,7 @@ namespace Schofield
             b.transform.position = at;
             b.transform.rotation = Quaternion.Euler(0, yaw * Mathf.Rad2Deg, 0);
             solids.Add(BoundsOf(b));
+            lots?.Add(new Lot { name = "CourtHouse", s = Mathf.Min(s, route.len), side = side, off = off, w = Width["CourtHouse"], y = at.y, yaw = yaw, b = b.transform, terminus = terminus });
         }
 
         // turn the clock hands (Clock_Hour_i / Clock_Minute_i, modelled at XII) about their dials' normals
@@ -148,6 +167,7 @@ namespace Schofield
                     if (reserve.side == side && s < reserve.s1 && s + w > reserve.s0) { s = reserve.s1 + 1.5f + rnd.Next() * 2; continue; }
                     Place(name, s + w / 2, side, rnd, ghost);
                     placed[side].Add((s, name)); last = name;
+                    if (ghost) Clutter(s + w * (0.2f + rnd.Next() * 0.6f), side, rnd);
                     s += w + 1.5f + rnd.Next() * 4;
                 }
             }
@@ -156,6 +176,45 @@ namespace Schofield
             Place(ghost ? "Church" : "WaterTower", mid + 30, ls, rnd, ghost, 14);
             if (ghost) Place("Gallows", s0 + 40, -1, rnd, ghost, 2);
         }
+
+        /// barrels, crates, a trough or a wreck by the street
+        public void Clutter(float s, float side, Rng rnd)
+        {
+            var props = Assets.Model("props");
+            if (!props) return;
+            string[] names = { "Barrel", "Crate", "WaterTrough", "Barrel", "Crate", "Wagon_Wreck" };
+            string pick = names[Mathf.FloorToInt(rnd.Next() * (rnd.Next() < 0.85f ? 5 : 6)) % 6];
+            var src = Assets.Find(props.transform, pick);
+            if (!src) return;
+            var f = route.Frame(s);
+            float off = (pick == "Wagon_Wreck" ? 7 : 6.8f) + rnd.Next() * 0.8f;
+            int n = pick == "Barrel" || pick == "Crate" ? 1 + Mathf.FloorToInt(rnd.Next() * 3) : 1;
+            for (int i = 0; i < n; i++)
+            {
+                var o = Object.Instantiate(src.gameObject, root);
+                float x = f.x + f.rx * off * side + f.tx * i * 0.9f, z = f.z + f.rz * off * side + f.tz * i * 0.9f;
+                o.transform.position = new Vector3(x, route.Height(x, z), z);
+                o.transform.rotation = Quaternion.Euler(0, pick == "Wagon_Wreck" ? (Mathf.Atan2(f.tx, f.tz) + (rnd.Next() - 0.5f) * 0.6f) * Mathf.Rad2Deg : rnd.Next() * 360, 0);
+                solids.Add(BoundsOf(o));
+            }
+        }
+
+        /// a piece of the town kit at road coordinates
+        public GameObject KitAt(string name, float s, float d, float yaw, bool solid = false)
+        {
+            var town = Assets.Model("town");
+            var src = town ? Assets.Find(town.transform, name) : null;
+            if (!src) return null;
+            var f = route.Frame(s);
+            var o = Object.Instantiate(src.gameObject, root);
+            float x = f.x + f.rx * d, z = f.z + f.rz * d;
+            o.transform.position = new Vector3(x, route.Height(x, z), z);
+            o.transform.rotation = Quaternion.Euler(0, yaw * Mathf.Rad2Deg, 0);
+            if (solid) solids.Add(BoundsOf(o));
+            return o;
+        }
+
+        public void Update(float dt, Coach coach) => folk?.Update(dt, coach);
 
         static Bounds BoundsOf(GameObject g)
         {
@@ -166,6 +225,6 @@ namespace Schofield
             return b;
         }
 
-        public void Dispose() { if (root) Object.Destroy(root.gameObject); }
+        public void Dispose() { folk?.Dispose(); if (root) Object.Destroy(root.gameObject); }
     }
 }

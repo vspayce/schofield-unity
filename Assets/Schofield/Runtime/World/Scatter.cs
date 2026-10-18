@@ -155,6 +155,7 @@ namespace Schofield
                     bool inTown = r.InTown(s) || (r.HasGhostTown && s > town.x - 30 && s < town.y + 30) || s < 130 || s > r.len - 150;
                     if (s >= 0 && inTown && Mathf.Abs(d) < (rule.far ? 32 : 40)) continue;
                     float h = r.Height(x, z);
+                    if (r.RailDist(x, z) < (rule.far ? 7 : 6)) continue;          // nothing planted on the railroad
                     if (r.def.gorge != null && s >= 0 && (h < r.RiverBedAt(s) + 3.6f || (r.OnBridge(s) && Mathf.Abs(d) < r.bridgeCutHalf))) continue;   // not in the river or the trestle's cut
                     if (!float.IsNaN(rule.minH) && h < rule.minH) continue;
                     if (!float.IsNaN(rule.maxH) && h > rule.maxH) continue;
@@ -170,6 +171,7 @@ namespace Schofield
             if (globals.TryGetValue(tile.key, out var gl))
                 foreach (var g in gl)
                 {
+                    if (r.RailDist(g.x, g.z) < 5) continue;
                     float h = r.Height(g.x, g.z);
                     if (!outK.TryGetValue(g.kind, out var l)) outK[g.kind] = l = new List<Matrix4x4>();
                     l.Add(Matrix4x4.TRS(new Vector3(g.x, h - 0.1f, g.z), Quaternion.Euler(0, g.rot * Mathf.Rad2Deg, 0), Vector3.one * g.s));
@@ -280,6 +282,7 @@ namespace Schofield
                 if (Mathf.Sqrt(hx * hx + hz * hz) > 0.5f) continue;
                 if (h > r.def.terrain.snowLine - 5) continue;
                 if (r.def.gorge != null && s >= 0 && h < r.RiverBedAt(s) + 3.2f) continue;
+                if (r.RailDist(x, z) < 3.4f + rnd.Next() * 1.2f) continue;   // ballast, not grass
                 arr.Add(new Vector4(x, h, z, (0.6f + rnd.Next() * 0.8f) * G.height * 1.6f));
             }
             return arr;

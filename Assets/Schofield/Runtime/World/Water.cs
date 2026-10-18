@@ -401,8 +401,7 @@ namespace Schofield
                 }
             }
             var mesh = B.Build("Falls arch"); owned.Add(mesh);
-            var mat = Assets.Lit(Color.Lerp(route.def.terrain.rockTint, Color.white, 0.55f), 0.08f);
-            mat.SetTexture("_BaseMap", Assets.Tex("rock"));
+            var mat = Assets.VLit(Color.Lerp(route.def.terrain.rockTint, Color.white, 0.55f), 0.08f, 0, "rock");
             owned.Add(mat);
             MeshKit.Show("Falls Arch", mesh, mat, root.transform);
             foreach (var R in rocks)

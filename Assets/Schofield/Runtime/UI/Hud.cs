@@ -27,6 +27,7 @@ namespace Schofield
         float bannerUntil, hpFlashUntil, coachFlashUntil; bool hpHeavy; int lastCoach = -1;
         WeaponDef weapon; string ammoMode;
         readonly Dictionary<string, Image> buttons = new Dictionary<string, Image>();
+        Text dynCount, dynCountTouch;
         readonly GameInput input;
 
         public Hud(GameInput input)
@@ -113,10 +114,12 @@ namespace Schofield
             banner = UIKit.Txt("Banner", layer, new Vector2(0.5f, 0.7f), Vector2.zero, new Vector2(1000, 60), "", 46, UIKit.Paper, TextAnchor.MiddleCenter, true);
             bannerSub = UIKit.Txt("Sub", banner.transform, new Vector2(0.5f, 0.5f), new Vector2(0, -42), new Vector2(1000, 30), "", 20, UIKit.Gold, TextAnchor.MiddleCenter, true);
 
+            if (!input.touch) dynCount = UIKit.Txt("Dynamite", safe, new Vector2(1, 1), new Vector2(-40, -214), new Vector2(240, 24), "", 15, UIKit.Paper, TextAnchor.MiddleRight, true);
+            if (dynCount) dynCount.rectTransform.pivot = new Vector2(1, 0.5f);
             if (input.touch) TouchButtons();
             else if (!input.pad)
                 UIKit.Txt("Hint", safe, new Vector2(0.5f, 0), new Vector2(0, 16), new Vector2(1200, 22),
-                    "Mouse aim · Click fire · F scope · R reload · Q swap · E Dead Eye · Hold S to stop, W to whip · Esc pause · or use a controller", 13, new Color(1, 1, 1, 0.55f));
+                    "Mouse aim · Click fire · F scope · R reload · Q swap · E Dead Eye · G dynamite · Hold S to stop, W to whip · Esc pause · or use a controller", 13, new Color(1, 1, 1, 0.55f));
             Show(false);
         }
 
@@ -138,6 +141,8 @@ namespace Schofield
             B("swap", "btn_swap", "SWAP", R, new Vector2(-137, 344), 96);
             B("deadeye", "btn_deadeye", "DEAD EYE", L, new Vector2(120, 287), 130);
             B("scope", null, "SCOPE", L, new Vector2(268, 287), 96);
+            var dyn = B("dynamite", null, "DYNAMITE", R, new Vector2(-302, 272), 104);
+            dynCountTouch = UIKit.Txt("n", dyn.transform, new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(104, 104), "3", 34, UIKit.Paper, TextAnchor.MiddleCenter, true);
             B("whip", "btn_whip", "WHIP", L, new Vector2(266, 111), 96);
             B("brake", "btn_brake", "REIN", L, new Vector2(118, 104), 96);
             var pause = UIKit.Img("btn pause", safe, new Vector2(0, 1), new Vector2(60, -52), new Vector2(76, 76), UIKit.Disc, new Color(0, 0, 0, 0.45f));
@@ -188,6 +193,13 @@ namespace Schofield
         }
 
         public void SetBounty(int v) => bounty.text = "$" + v;
+
+        public void SetDynamite(int n)
+        {
+            if (dynCount) dynCount.text = n > 0 ? $"DYNAMITE  {n}   (G)" : "";
+            if (dynCountTouch) dynCountTouch.text = n.ToString();
+            if (buttons.TryGetValue("dynamite", out var b)) b.color = n > 0 ? new Color(0.42f, 0.16f, 0.1f, 0.85f) : new Color(0.16f, 0.1f, 0.06f, 0.3f);
+        }
 
         public void Feed(string text, bool hs)
         {

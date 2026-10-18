@@ -120,7 +120,7 @@ namespace Schofield
             add.Spawn(pos + dir * s * 0.35f, life: 0.05f, size: s * 0.35f, streak: s * 0.9f, dir: dir, color: new Color(1, 0.7f, 0.35f), fadeIn: 0);
             for (int i = 0; i < (big ? 7 : 4); i++)
                 smoke.Spawn(pos, dir * (2 + Random.value * (big ? 7 : 4)) + R3(1.5f, 0.8f, 1.5f), life: 1.4f + Random.value, size: 0.25f, size1: big ? 2.2f : 1.4f, color: smokeCol, alpha: 0.5f, drag: 2.4f, grav: -0.25f);
-            if (light) { flash.transform.position = pos; flash.intensity = big ? 6 : 3.5f; lightT = 0.05f; }
+            if (light) { flash.transform.position = pos; flash.range = 6; flash.intensity = big ? 6 : 3.5f; lightT = 0.05f; }
         }
 
         public void Tracer(Vector3 from, Vector3 to)
@@ -157,6 +157,24 @@ namespace Schofield
         {
             for (int i = 0; i < 5; i++)
                 add.Spawn(pos, new Vector3((Random.value - 0.5f) * 8, Random.value * 6, (Random.value - 0.5f) * 8), life: 0.25f, size: 0.03f, streak: 0.25f, color: new Color(1, 0.75f, 0.4f), drag: 1, grav: 9.8f, fadeIn: 0);
+        }
+
+        /// dynamite: a fireball, a ring of dust, sparks thrown out, and a big flash
+        public void Explosion(Vector3 pos, float radius = 15)
+        {
+            var up = pos + new Vector3(0, 0.7f, 0);
+            add.Spawn(up, life: 0.24f, size: 6, size1: 11, color: new Color(1, 0.77f, 0.38f), spin: 0, fadeIn: 0);
+            add.Spawn(up, life: 0.12f, size: 2.4f, size1: 3.8f, color: new Color(1, 0.97f, 0.78f), spin: 0, fadeIn: 0);
+            for (int i = 0; i < 10; i++)
+                smoke.Spawn(up + R3(3, 2, 3), R3(6, 5, 6), life: 2.5f + Random.value * 2, size: 2.5f, size1: 9, color: new Color(0.25f, 0.22f, 0.2f), alpha: 0.7f, drag: 1.6f, grav: -0.6f, fadeIn: 0.05f);
+            Dust(pos, 30, 1.8f, null, 8, 12);
+            for (int i = 0; i < 32; i++)
+            {
+                float a = Random.value * Mathf.PI * 2, sp = 7 + Random.value * 11;
+                var vel = new Vector3(Mathf.Cos(a) * sp, 2 + Random.value * 9, Mathf.Sin(a) * sp);
+                add.Spawn(pos, vel, life: 0.28f + Random.value * 0.3f, size: 0.055f, size1: 0.025f, streak: 0.8f, dir: vel, color: new Color(1, 0.48f + Random.value * 0.3f, 0.12f), drag: 1.2f, grav: 14, fadeIn: 0);
+            }
+            flash.transform.position = up; flash.range = radius * 2.5f; flash.intensity = 40; lightT = 0.18f;
         }
 
         public void Glint(Vector3 pos, float strength = 1)

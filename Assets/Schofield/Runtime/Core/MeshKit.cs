@@ -94,6 +94,36 @@ namespace Schofield
                 Box(new Vector3(thick, L, thick), (a + b) * 0.5f, Quaternion.FromToRotation(Vector3.up, d / L), col);
             }
 
+            /// a capped cylinder (or cone, r0 != r1) from a to b, smooth sides
+            public void Cylinder(Vector3 a, Vector3 b, float r0, float r1, int seg = 14, Color? col = null)
+            {
+                var ax = b - a; float L = ax.magnitude; if (L < 1e-4f) return;
+                var q = Quaternion.FromToRotation(Vector3.up, ax / L);
+                var cc = col ?? Color.white;
+                int s0 = v.Count;
+                for (int i = 0; i <= seg; i++)
+                {
+                    float an = i / (float)seg * Mathf.PI * 2;
+                    var dir = new Vector3(Mathf.Cos(an), 0, Mathf.Sin(an));
+                    var nn = q * new Vector3(dir.x, (r0 - r1) / L, dir.z).normalized;
+                    v.Add(a + q * (dir * r0)); n.Add(nn); c.Add(cc); uv.Add(new Vector2(i / (float)seg * 2, 0));
+                    v.Add(a + q * (dir * r1 + Vector3.up * L)); n.Add(nn); c.Add(cc); uv.Add(new Vector2(i / (float)seg * 2, L / 2));
+                }
+                for (int i = 0; i < seg; i++) { int k = s0 + i * 2; t.AddRange(new[] { k, k + 1, k + 2, k + 2, k + 1, k + 3 }); }
+                foreach (var (pt, r, up) in new[] { (a, r0, false), (b, r1, true) })
+                {
+                    if (r <= 0) continue;
+                    var nn = q * (up ? Vector3.up : Vector3.down);
+                    int ci = v.Count; v.Add(pt); n.Add(nn); c.Add(cc); uv.Add(Vector2.zero);
+                    for (int i = 0; i <= seg; i++)
+                    {
+                        float an = i / (float)seg * Mathf.PI * 2;
+                        v.Add(pt + q * (new Vector3(Mathf.Cos(an), 0, Mathf.Sin(an)) * r)); n.Add(nn); c.Add(cc); uv.Add(Vector2.zero);
+                    }
+                    for (int i = 0; i < seg; i++) { if (up) t.AddRange(new[] { ci, ci + 2 + i, ci + 1 + i }); else t.AddRange(new[] { ci, ci + 1 + i, ci + 2 + i }); }
+                }
+            }
+
             /// flat-shaded triangles (each face its own vertices)
             public void Flat(Vector3[] verts, int[] tris, Color col, System.Func<Vector3, Vector3, Vector2> uvOf = null)
             {

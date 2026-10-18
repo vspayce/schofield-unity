@@ -39,6 +39,8 @@ namespace Schofield
         class Thrown { public Transform o; public Vector3 vel, spin; public bool landed, animated; public float seatH, age; }
         Thrown thrown;
         public override bool IsRidingRider => alive && state == "ride";
+        public float AtTeam => atTeam;
+        public float D => d;
 
         public Rider(Game game, string from, int slot, float sideIn) : base(game)
         {
@@ -260,6 +262,7 @@ namespace Schofield
     {
         readonly Gun gun; readonly bool rifle; readonly Transform root; readonly string variant;
         float yaw, losT, pop = 1; readonly bool popup; readonly Vector3 basePos;
+        public System.Func<Vector3> carrier;      // riding something that moves (a boxcar roof)
         public override bool Rifle => rifle;
 
         public Gunman(Game game, Vector3 p, Vector3 face, bool rifle = true, string variant = null, string gunName = null, bool popup = false) : base(game)
@@ -287,6 +290,7 @@ namespace Schofield
         {
             var coach = g.coach;
             man.Update(dt);
+            if (carrier != null) root.position = carrier();       // dead or alive, he rides the roof
             if (!alive) return;
             var dir = coach.pos - root.position;
             yaw = Mathf.LerpAngle(yaw * Mathf.Rad2Deg, Mathf.Atan2(dir.x, dir.z) * Mathf.Rad2Deg, 1 - Mathf.Exp(-4 * dt)) * Mathf.Deg2Rad;
@@ -359,14 +363,23 @@ namespace Schofield
         public readonly List<Enemy> list = new List<Enemy>();
         readonly List<WaveDef> waves = new List<WaveDef>();
         readonly List<(float t, bool rider, System.Action fn)> spawnQ = new List<(float, bool, System.Action)>();
-        int riderCap = 5;
+        int riderCap = 5; bool marauders;
         readonly HashSet<Vector3> usedSpawns = new HashSet<Vector3>();
         bool engaged, bartSeen;
 
         public Enemies(Game game)
         {
             g = game;
-            foreach (var w in game.route.def.waves) waves.Add(new WaveDef(w.at, w.type, w.count, w.from));
+            foreach (var w in game.route.def.waves) if (w.type != "herd") waves.Add(new WaveDef(w.at, w.type, w.count, w.from));
+        }
+
+        /// Called once the player exists, since the loadout decides this: the job draws trouble (a bullion run
+        /// brings one band, a prisoner transfer brings his friends the whole way), and word gets around that
+        /// the coach is carrying a Gatling.
+        public void PlanFor(Player player, MissionDef m)
+        {
+            foreach (float at in m.bands) waves.Add(new WaveDef(at, "marauders", 11));
+            foreach (var w in player.loadout) if (w.id == "gatling") { waves.Add(new WaveDef(0.46f, "marauders", 14)); break; }
         }
 
         public int AliveCount { get { int n = 0; foreach (var e in list) if (e.alive) n++; return n; } }
@@ -387,6 +400,7 @@ namespace Schofield
                 spawnQ[i] = q;
             }
             bool busy = AliveCount > 0 || spawnQ.Count > 0;
+            if (marauders && !busy) { marauders = false; riderCap = 5; }
             if (engaged && !busy && !g.over) { g.coach.hp = Mathf.Min(100, g.coach.hp + 10); g.hud.Feed("Coach patched up +10", false); }
             engaged = busy;
             for (int i = 0; i < list.Count; i++) list[i].Update(dt);
@@ -412,6 +426,22 @@ namespace Schofield
                     while (used.Contains(slot)) slot++;
                     int sl = slot++; float side = i % 2 == 0 ? 1 : -1; string from = w.from;
                     spawnQ.Add((i * 0.9f, true, () => list.Add(new Rider(g, from, sl, side))));
+                }
+            }
+            else if (w.type == "marauders")
+            {
+                g.hud.Banner(g.mission.id == "prisoner" ? "They want him back!" : "Marauders!", "All sides", 3);
+                Sound.I.Play("horse_neigh", 1, 0.85f);
+                riderCap = 10;                        // a band, not a patrol
+                marauders = true;
+                string[] froms = { "behind", "flank", "ahead" };
+                var used = new HashSet<int>(); foreach (var e in list) if (e.type == "rider" && e.alive) used.Add(e.slot);
+                int slot = 0;
+                for (int i = 0; i < n; i++)
+                {
+                    while (used.Contains(slot)) slot++;
+                    int sl = slot++; float side = i % 2 == 0 ? -1 : 1; string from = froms[i % froms.Length];
+                    spawnQ.Add((i * 0.55f, true, () => list.Add(new Rider(g, from, sl, side))));
                 }
             }
             else if (w.type == "town")

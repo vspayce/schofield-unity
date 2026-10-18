@@ -11,7 +11,7 @@ namespace Schofield
     public struct Frame
     {
         public float dx, dy;                         // aim change, radians
-        public bool fire, firePressed, reload, swap, deadeye, scope, pause, whip, brake;
+        public bool fire, firePressed, reload, swap, deadeye, scope, pause, whip, brake, dynamite;
     }
 
     public class GameInput
@@ -21,7 +21,7 @@ namespace Schofield
         public bool touch;            // a phone or tablet: show the buttons, aim assist
         public bool pad;              // last input came from a controller (aim assist, button hints)
         float dx, dy;
-        bool fireHeld, firePressed, reload, swap, deadeye, scope, pause, whipKey, brakeKey;
+        bool fireHeld, firePressed, reload, swap, deadeye, scope, pause, whipKey, brakeKey, dynamite;
 
         // on-screen buttons the HUD registers: role -> rect
         public readonly Dictionary<string, RectTransform> buttons = new Dictionary<string, RectTransform>();
@@ -55,11 +55,11 @@ namespace Schofield
             var r = new Frame
             {
                 dx = dx, dy = dy * (invertY ? -1 : 1), fire = fireHeld, firePressed = firePressed,
-                reload = reload, swap = swap, deadeye = deadeye, scope = scope, pause = pause,
+                reload = reload, swap = swap, deadeye = deadeye, scope = scope, pause = pause, dynamite = dynamite,
                 whip = whipKey || held.Contains("whip"), brake = brakeKey || held.Contains("brake"),
             };
             dx = dy = 0;
-            firePressed = reload = swap = deadeye = scope = pause = false;
+            firePressed = reload = swap = deadeye = scope = pause = dynamite = false;
             return r;
         }
 
@@ -90,6 +90,7 @@ namespace Schofield
             if (k.qKey.wasPressedThisFrame || k.digit1Key.wasPressedThisFrame || k.digit2Key.wasPressedThisFrame || k.tabKey.wasPressedThisFrame) swap = true;
             if (k.eKey.wasPressedThisFrame || k.spaceKey.wasPressedThisFrame) deadeye = true;
             if (k.fKey.wasPressedThisFrame || k.zKey.wasPressedThisFrame) scope = true;
+            if (k.gKey.wasPressedThisFrame) dynamite = true;
             whipKey = k.wKey.isPressed || k.leftShiftKey.isPressed;
             brakeKey = k.sKey.isPressed || k.leftCtrlKey.isPressed;
             if (k.anyKey.wasPressedThisFrame) pad = false;
@@ -139,6 +140,7 @@ namespace Schofield
             if (g.rightShoulder.wasPressedThisFrame || g.buttonNorth.wasPressedThisFrame) { swap = true; pad = true; }
             if (g.leftShoulder.wasPressedThisFrame) { deadeye = true; pad = true; }
             if (g.buttonWest.wasPressedThisFrame) { reload = true; pad = true; }
+            if (g.dpad.up.wasPressedThisFrame || g.rightStickButton.wasPressedThisFrame) { dynamite = true; pad = true; }
             bool whip = g.buttonSouth.isPressed || ls.y > 0.6f, brake = g.buttonEast.isPressed || ls.y < -0.6f;
             if (whip) held.Add("padwhip"); else held.Remove("padwhip");
             if (brake) held.Add("padbrake"); else held.Remove("padbrake");
@@ -171,6 +173,7 @@ namespace Schofield
                         case "swap": swap = true; break;
                         case "deadeye": deadeye = true; break;
                         case "scope": scope = true; break;
+                        case "dynamite": dynamite = true; break;
                         case "pause": pause = true; break;
                     }
                     if (role != "aim") held.Add(role);

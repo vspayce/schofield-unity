@@ -64,6 +64,8 @@ namespace Schofield
         /// the Mecanim copy of a model's clip (made in the editor: Schofield/Convert Model Clips for Mecanim)
         public static AnimationClip Clip(string model, string clip) => Resources.Load<AnimationClip>($"Anims/{model}/{clip}");
         public static AudioClip Clip(string name) => Load<AudioClip>("Audio/" + name);
+        /// a clip made at run time (the train's synthesised sounds), played by name like the rest
+        public static void RegisterClip(string name, AudioClip c) => cache["Audio/" + name] = c;
         public static Sprite Sprite(string name) => Load<Sprite>("UI/" + name);
         public static Font Font(string name) => Load<Font>("Fonts/" + name);
 
@@ -112,6 +114,15 @@ namespace Schofield
             var mats = r.materials;
             foreach (var m in mats) { var c = GetColor(m); SetColor(m, new Color(c.r * mul.r, c.g * mul.g, c.b * mul.b, c.a)); }
             r.materials = mats;
+        }
+
+        /// lit material that honours vertex colours (for meshes built in code)
+        public static Material VLit(Color c, float smooth = 0.1f, float metal = 0, string tex = null, float texScale = 1)
+        {
+            var m = new Material(Shader("VertexLit"));
+            m.SetColor(BaseColor, c); m.SetFloat("_Smoothness", smooth); m.SetFloat("_Metallic", metal); m.SetFloat("_TexScale", texScale);
+            if (tex != null) m.SetTexture("_BaseMap", Tex(tex));
+            return m;
         }
 
         public static Material Lit(Color c, float smooth = 0.1f, float metal = 0)

@@ -166,6 +166,7 @@ namespace Schofield
         }
 
         public GameObject Root => root;
+        public int TeamCount => team.Count;
         public Transform TeamRoot(int i) => i < team.Count ? team[i].h.root.transform : null;
 
         /// after animation: hang the lines between the driver's hand and the team

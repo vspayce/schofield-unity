@@ -30,12 +30,12 @@ namespace Schofield
         float fov = 60;
         public PickInfo? hover;
 
-        public Player(Game game, string side = "schofield", string longGun = "shotgun")
+        public Player(Game game, string side = "schofield", string longGun = "shotgun", bool startLong = false)
         {
             g = game; cam = game.cam;
             loadout = new[] { Weapons.All.TryGetValue(side, out var a) ? a : Weapons.All["schofield"], Weapons.All.TryGetValue(longGun, out var b) ? b : Weapons.All["shotgun"] };
             foreach (var W in loadout) ammo[W.id] = W.mag;
-            weapon = loadout[0];
+            weapon = startLong ? loadout[1] : loadout[0];
             model = Characters.CreateRider("player");
             var seat = game.coach.seatGuard ? game.coach.seatGuard : game.coach.body;
             model.root.transform.SetParent(seat, false);
@@ -123,6 +123,7 @@ namespace Schofield
                 W = weapon;
             }
             if (inp.reload && reloading <= 0 && ammo[W.id] < W.mag) Reload();
+            if (inp.dynamite) g.dynamite?.Throw();
 
             if (inp.deadeye)
             {
@@ -243,7 +244,8 @@ namespace Schofield
                 // assist only nudges near-misses onto the body/horse; headshots must be earned
                 float tol = (AssistOn ? 0.05f : 0.025f) / Zoom;
                 var hit = g.enemies.Raycast(camPos, aimDir, W.range, tol, AssistOn ? 1.1f : 0.8f);
-                aimPoint = hit.HasValue ? hit.Value.point : camPos + aimDir * 120;
+                var animal = !hit.HasValue ? g.wildlife?.Pick(camPos, aimDir, tol) : null;
+                aimPoint = hit.HasValue ? hit.Value.point : animal.HasValue && animal.Value.dist < W.range ? animal.Value.aim : camPos + aimDir * 120;
             }
             var baseDir = (aimPoint - camPos).normalized;
             bool anyHit = false, killed = false, head = false; int pelletHits = 0;

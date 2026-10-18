@@ -15,6 +15,10 @@ namespace Schofield
         public Hud hud; public Menus menus; public Post post;
         public Route route; public Terrain terrain; public Scatter scatter; public Sky sky; public Towns towns;
         public GorgeBridge bridge; public RockArches arches; public Water water;
+        public Escorts escorts; public MissionDef mission = Missions.All["mail"];
+        public Dynamite dynamite; public Billboards boards; public Wildlife wildlife;
+        public Railroad rail; public Crossing crossing;
+        string[] hires = new string[0]; public int hireFee;
         public Coach coach; public Player player; public Enemies enemies; public Combat combat; public FX fx;
         public Routes.Diff diff;
         public int routeIndex;
@@ -69,6 +73,7 @@ namespace Schofield
             if (route == null) return;
             player?.Dispose(); player = null;
             enemies?.Dispose(); coach?.Dispose(); fx?.Dispose(); scatter?.Dispose(); towns?.Dispose(); terrain?.Dispose(); sky?.Dispose();
+            escorts?.Dispose(); escorts = null; crossing?.Dispose(); crossing = null; rail?.Dispose(); rail = null; dynamite?.Dispose(); dynamite = null; boards?.Dispose(); boards = null; wildlife?.Dispose(); wildlife = null;
             bridge?.Dispose(); bridge = null; arches?.Dispose(); arches = null; water?.Dispose(); water = null;
             if (attractGuard != null) { attractGuard.anim.Dispose(); attractGuard = null; }
             if (world) Destroy(world.gameObject);
@@ -134,26 +139,32 @@ namespace Schofield
             DisposeWorld();
             routeIndex = i;
             var def = Routes.All[i];
-            diff = Routes.DiffFor(i);
+            mission = Missions.All[Save.Mission];
+            diff = Missions.Apply(Routes.DiffFor(i), mission);
             world = new GameObject("World").transform;
             route = new Route(def);
             sky = new Sky(route, world);
             post.SetRoute(def.light);
+            // the railroad first: it grades the land along its line, which the terrain and scatter have to see
+            rail = def.railroad != null ? new Railroad(route, world, def.railroad) : null;
             bool phone = Application.isMobilePlatform || System.Array.IndexOf(System.Environment.GetCommandLineArgs(), "-phone") >= 0;
             terrain = new Terrain(route, world, phone ? 560 : 700);
             scatter = new Scatter(route, phone ? 0.8f : 1f, phone ? 0.6f : 1f);
             terrain.onTile = scatter.OnTile;
             terrain.work = scatter.Compute;
             towns = new Towns(route, world);
+            if (rail != null) { towns.solids.AddRange(rail.solids); rail.onJolt = k => { shake += 0.16f * k; Sound.I.Play("hit_wood_1", 0.5f * k, 0.7f); }; }
             bridge = route.hasBridge ? new GorgeBridge(route, world) : null;
             arches = def.arches != null ? new RockArches(route, world, def.arches) : null;
             // the gorge river and the falls the road runs under; punching through the curtain rocks the coach
             water = def.gorge != null ? new Water(route, world) : null;
             if (water != null) water.onBurst = k => shake += 0.4f * k;
+            boards = new Billboards(route, world, def.billboards);
             coach = new Coach(route, world);
             fx = new FX(route, world);
             combat = new Combat(this);
             enemies = new Enemies(this);
+            wildlife = m == "ride" ? new Wildlife(this) : null;
             mode = m;
             over = arrived = false;
             bounty = 0; hud.SetBounty(0);
@@ -162,7 +173,12 @@ namespace Schofield
             coach.Update(0.016f, default, false);
             if (m == "ride")
             {
-                player = new Player(this);
+                player = new Player(this, Save.Equipped("side"), Save.Equipped("long"), Save.Start == "long");
+                coach.hp = Save.CoachHp;
+                enemies.PlanFor(player, mission);
+                escorts = new Escorts(this, hires);
+                dynamite = new Dynamite(this);
+                crossing = rail != null && rail.hasTrain ? new Crossing(this, rail, def.railroad) : null;
                 hud.SetRoute(def);
             }
             else
@@ -190,8 +206,10 @@ namespace Schofield
             Sound.I.Loop("music_menu", 1, true);
         }
 
-        public void StartRide(int i)
+        /// hires: escort ids for this ride only (already paid for by the menu)
+        public void StartRide(int i, string[] hireIds = null, int fee = 0)
         {
+            hires = hireIds ?? new string[0]; hireFee = hireIds == null ? 0 : fee;
             paused = false; Sound.I.Pause(false);
             Sound.I.StopAll(0.3f);
             BuildWorld(i, "ride");
@@ -201,7 +219,7 @@ namespace Schofield
             SetTimeScale(1); timeScale = 1;
             time = 0;
             var def = Routes.All[i];
-            hud.Banner(def.name, $"Mail Contract — {def.from} to {def.to}", 3.5f);
+            hud.Banner(def.name, $"{mission.name} — {def.from} to {def.to}", 3.5f);
             Sound.I.Play("whip_crack", 0.9f);
             Sound.I.Play("horse_neigh", 0.5f, 1, null, 0.3f);
             Sound.I.Loop("horse_gallop_loop", 0.5f);
@@ -258,7 +276,9 @@ namespace Schofield
             coach.stopping = true;
             int kept = bounty;
             Save.Earn(kept);
-            Later(2.2f, () => { SetTimeScale(1); hud.Show(false); menus.Failed(reason, kept); });
+            Save.WearCoach(coach.hp);       // you limp home with whatever is left
+            int fee = hireFee;
+            Later(2.2f, () => { SetTimeScale(1); hud.Show(false); menus.Failed(reason, kept, fee); });
         }
 
         void Arrive()
@@ -281,10 +301,12 @@ namespace Schofield
             int stars = 1;
             if (coachPct >= 50 && accuracy >= 35) stars = 2;
             if (coachPct >= 75 && accuracy >= 50 && player.hp > 30) stars = 3;
-            int reward = Mathf.RoundToInt(def.reward * (0.5f + coachPct / 200f));
-            var r = new Results { kills = st.kills, headshots = st.headshots, accuracy = accuracy, coach = coachPct, bounty = bounty, reward = reward, total = bounty + reward, stars = stars };
+            int reward = Mathf.RoundToInt(def.reward * mission.pay * (0.5f + coachPct / 200f));
+            var r = new Results { kills = st.kills, headshots = st.headshots, accuracy = accuracy, coach = coachPct, bounty = bounty, reward = reward, total = bounty + reward, stars = stars,
+                mission = mission.name, hireFee = hireFee, escortKills = escorts != null ? escorts.kills : 0, escortBounty = escorts != null ? escorts.bounty : 0 };
             Save.Record(def.id, stars, r.total);
             Save.Earn(r.total);
+            Save.WearCoach(coach.hp);
             Later(3.5f, () => { hud.Show(false); menus.ShowResults(r); });
         }
 
@@ -323,6 +345,10 @@ namespace Schofield
             {
                 player.Update(dt, rdt, over ? default : inp);
                 enemies.Update(dt);
+                escorts?.Update(dt);
+                wildlife?.Update(dt);
+                crossing?.Update(dt);
+                dynamite?.Update(dt);
                 if (!over && coach.s >= route.len - 40) Arrive();
                 float sp = coach.speed / 15;
                 Sound.I.LoopRate("horse_gallop_loop", Mathf.Clamp(0.92f + (sp - 0.53f) * 0.21f, 0.92f, 1.13f));
@@ -332,6 +358,8 @@ namespace Schofield
                 whipCd = Mathf.Max(0, whipCd - rdt);
             }
             else attractGuard?.Update(dt);
+            rail?.Update(dt, mode == "ride" ? coach : null);
+            towns.Update(dt, coach);
             fx.Trail(coach.pos - coach.fwd * 1.6f, coach.speed > 4 ? coach.speed * 0.9f : 0, dt, 1.0f);
             fx.Trail(coach.pos + coach.fwd * (coach.teamFront * 0.55f), coach.speed > 4 ? coach.speed * 0.5f : 0, dt, 0.8f);
             shake = MathX.Damp(shake, 0, 6, rdt);
@@ -347,6 +375,8 @@ namespace Schofield
             if (mode == "ride" && player != null)
             {
                 enemies.LateUpdate();
+                escorts?.LateUpdate();
+                rail?.LateUpdate();
                 player.LateUpdate(paused ? 0 : rdt);
                 hud.Update(this);
             }

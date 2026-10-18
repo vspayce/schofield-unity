@@ -35,7 +35,7 @@ namespace Schofield
     public class WaveDef
     {
         public float at; public string type; public int count; public string from = "behind";
-        public bool done;
+        public bool done; public string kind; public float lead;
         public WaveDef(float at, string type, int count, string from = "behind") { this.at = at; this.type = type; this.count = count; this.from = from; }
     }
 
@@ -58,6 +58,9 @@ namespace Schofield
         public WaveDef[] waves;
         public float ghostTownStart = -1, ghostTownLength;
         public ArchDef[] arches;
+        public int billboards = 3;
+        public WildDef wildlife;
+        public RailDef railroad;
         public GorgeDef gorge;
     }
 
@@ -74,6 +77,8 @@ namespace Schofield
                 id = "plains", clock = "5:40", name = "Dry Creek Plains", from = "Mercy Springs", to = "Dry Creek",
                 blurb = "Open grassland at golden hour. Riders will try to run you down.",
                 seed = 1871, length = 2600, biome = "plains", reward = 400, wind = 0.9f, winding = 0.35f,
+                wildlife = new WildDef(95, "buffalo", "goat", "goat", "bear", "hawk"),
+                railroad = new RailDef { at = 0.62f, workers = 7, train = true, cars = 3, gunmen = 4 },
                 light = new LightDef
                 {
                     sunElev = 13, sunAzim = 230, sunColor = C("#ffc98a"), sunIntensity = 4.2f,
@@ -105,6 +110,7 @@ namespace Schofield
                 {
                     new WaveDef(0.08f, "riders", 2, "behind"),
                     new WaveDef(0.2f, "riders", 3, "flank"),
+                    new WaveDef(0.28f, "herd", 16) { kind = "buffalo", lead = 320 },
                     new WaveDef(0.34f, "ridge", 2),
                     new WaveDef(0.42f, "riders", 4, "behind"),
                     new WaveDef(0.58f, "riders", 3, "ahead"),
@@ -116,7 +122,8 @@ namespace Schofield
             {
                 id = "pass", clock = "10:20", name = "Widow's Pass", from = "Dry Creek", to = "Silver Notch",
                 blurb = "A winding mountain road. Riflemen on every ridge; mind the drop.",
-                seed = 1874, length = 2800, biome = "mountain", reward = 650, wind = 1.2f, winding = 1.0f,
+                seed = 1874, length = 2800, biome = "mountain", reward = 650, wind = 1.2f, winding = 1.0f, billboards = 2,
+                wildlife = new WildDef(120, "goat", "goat", "goat", "bear", "hawk"),
                 light = new LightDef
                 {
                     sunElev = 24, sunAzim = 150, sunColor = C("#ffe2c0"), sunIntensity = 3.0f,
@@ -155,6 +162,8 @@ namespace Schofield
                 id = "perdition", clock = "7:25", name = "Perdition", from = "Silver Notch", to = "Red Mesa",
                 blurb = "Straight through a ghost town at dusk. Gunmen in every window.",
                 seed = 1877, length = 2400, biome = "desert", reward = 900, wind = 1.0f, winding = 0.25f,
+                wildlife = new WildDef(130, "goat", "goat", "hawk"),
+                railroad = new RailDef { at = 0.34f, workers = 5, train = true, cars = 3, gunmen = 5, speed = 12 },
                 ghostTownStart = 0.38f, ghostTownLength = 420,
                 light = new LightDef
                 {
@@ -190,6 +199,7 @@ namespace Schofield
                 id = "gulch", clock = "5:55", name = "Devil's Gulch", from = "Red Mesa", to = "Fort Providence",
                 blurb = "A red canyon at sundown. Every gun in the territory wants your strongbox.",
                 seed = 1879, length = 3000, biome = "canyon", reward = 1400, wind = 1.1f, winding = 0.6f,
+                wildlife = new WildDef(115, "bear", "goat", "goat", "hawk"),
                 arches = new[] { new ArchDef(0.24f, 96, 30, 25), new ArchDef(0.57f, 88, 33, 27), new ArchDef(0.82f, 102, 29, 26) },
                 light = new LightDef
                 {
@@ -223,7 +233,8 @@ namespace Schofield
             {
                 id = "gorge", clock = "8:15", name = "Thunder Gorge", from = "Fort Providence", to = "Cascade",
                 blurb = "Cross a high timber trestle over the gorge before the road runs beneath the falls.",
-                seed = 1883, length = 2700, biome = "gorge", reward = 1800, wind = 1.1f, winding = 0.75f,
+                seed = 1883, length = 2700, biome = "gorge", reward = 1800, wind = 1.1f, winding = 0.75f, billboards = 2,
+                wildlife = new WildDef(110, "goat", "goat", "bear", "hawk"),
                 gorge = new GorgeDef { side = 1, depth = 27, bridgeAt = 0.22f, bridgeLength = 300, bridgeWidth = 8.4f, bridgeCutHalf = 46, bridgeDepth = 76, fallsAt = 0.54f, fallsDrop = 34, fallsWidth = 24 },
                 light = new LightDef
                 {

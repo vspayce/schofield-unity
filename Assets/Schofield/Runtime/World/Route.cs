@@ -273,7 +273,7 @@ namespace Schofield
             return Mathf.Lerp(roadH[i], roadH[i + 1], t);
         }
 
-        public float Height(float x, float z)
+        float BaseHeight(float x, float z)
         {
             RoadCoords(x, z, out float d, out float s);
             float nat = Natural(x, z);
@@ -388,6 +388,41 @@ namespace Schofield
         public bool InTown(float s) => townS0 >= 0 && s > townS0 && s < townS1;
         public bool HasGhostTown => townS0 >= 0;
         public Vector2 TownRange => new Vector2(townS0, townS1);
-        public float RailDist(float x, float z) => float.PositiveInfinity;   // (railroad: next phase)
+        // ------------------------------------------------------------ railroad
+        // A railroad is graded, not draped: once one is registered, the land along it is cut down or built up to
+        // a level bed at rail height, so the line never plunges into a hillside. The road wins where they cross.
+        public struct Rail { public float x, z, dx, dz, y, grade, reach, half; }
+        Rail? rail;
+        public void SetRail(Rail r) => rail = r;
+
+        /// metres from the rail centreline (infinity past the ends of the line)
+        public float RailDist(float x, float z)
+        {
+            if (!rail.HasValue) return float.PositiveInfinity;
+            var r = rail.Value;
+            float dx = x - r.x, dz = z - r.z, u = dx * r.dx + dz * r.dz;
+            if (Mathf.Abs(u) > r.reach + 20) return float.PositiveInfinity;
+            return Mathf.Abs(dx * r.dz - dz * r.dx);
+        }
+
+        public float Height(float x, float z)
+        {
+            float h = BaseHeight(x, z);
+            if (!rail.HasValue) return h;
+            var r = rail.Value;
+            float dx = x - r.x, dz = z - r.z, u = dx * r.dx + dz * r.dz, au = Mathf.Abs(u);
+            if (au > r.reach + 30) return h;
+            float lat = Mathf.Abs(dx * r.dz - dz * r.dx);
+            float bed = r.y + r.grade * u - 0.28f;
+            float diff = h - bed;
+            float run = 3 + Mathf.Abs(diff) * 1.6f;
+            float w = 1 - MathX.Smoothstep(r.half, r.half + run, lat);
+            if (w <= 0) return h;
+            w *= 1 - MathX.Smoothstep(r.reach, r.reach + 30, au);
+            RoadCoords(x, z, out float rd, out float rs);
+            float onRoad = rs >= 0 ? 1 - MathX.Smoothstep(RoadHalf + 0.5f, RoadHalf + 4, Mathf.Abs(rd)) : 0;
+            float ramp = onRoad * 0.32f * (1 - MathX.Smoothstep(2.4f, 7.5f, lat));
+            return Mathf.Lerp(h, bed, w * (1 - onRoad)) + ramp;
+        }
     }
 }
