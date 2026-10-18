@@ -313,12 +313,12 @@ namespace Schofield
         public void Settings(bool fromPause)
         {
             var p = NewPanel(true);
-            T(p, new Vector2(0, 250), new Vector2(600, 60), "Settings", 48, UIKit.Paper);
+            T(p, new Vector2(0, 262), new Vector2(600, 60), "Settings", 48, UIKit.Paper);
             var snd = Sound.I;
             Button first = null;
             void Row(int k, string label, System.Func<string> value, System.Action dec, System.Action inc)
             {
-                float y = 160 - k * 64;
+                float y = 185 - k * 62;
                 T(p, new Vector2(-170, y), new Vector2(300, 40), label, 22, UIKit.Paper, TextAnchor.MiddleLeft);
                 var v = T(p, new Vector2(140, y), new Vector2(160, 40), value(), 22, UIKit.Gold);
                 var a = UIKit.Btn("Dec", p, C, new Vector2(30, y), new Vector2(56, 44), "−", () => { dec(); v.text = value(); }, 24);
@@ -329,9 +329,10 @@ namespace Schofield
             Row(1, "Invert look", () => g.input.invertY ? "ON" : "OFF", () => { g.input.invertY = !g.input.invertY; g.input.Save(); }, () => { g.input.invertY = !g.input.invertY; g.input.Save(); });
             Row(2, "Music", () => Mathf.RoundToInt(snd.musicVolume * 100) + "%", () => snd.SetVolumes(Mathf.Max(0, snd.musicVolume - 0.1f), snd.sfxVolume), () => snd.SetVolumes(Mathf.Min(1, snd.musicVolume + 0.1f), snd.sfxVolume));
             Row(3, "Effects", () => Mathf.RoundToInt(snd.sfxVolume * 100) + "%", () => snd.SetVolumes(snd.musicVolume, Mathf.Max(0, snd.sfxVolume - 0.1f)), () => snd.SetVolumes(snd.musicVolume, Mathf.Min(1, snd.sfxVolume + 0.1f)));
-            Row(4, "God mode", () => g.godMode ? "ON" : "OFF", () => g.godMode = !g.godMode, () => g.godMode = !g.godMode);
-            UIKit.Btn("Done", p, C, new Vector2(fromPause ? 0 : -140, -220), new Vector2(240, 54), "DONE", () => { if (fromPause) Pause(); else Title(); });
-            if (!fromPause) UIKit.Btn("Wipe", p, C, new Vector2(140, -220), new Vector2(240, 54), "START OVER…", () => ConfirmWipe(), 20);
+            Row(4, "Graphics", () => Post.Quality == 1 ? "HIGH" : "FAST", () => { Post.Quality = 1 - Post.Quality; g.post.ApplyQuality(); }, () => { Post.Quality = 1 - Post.Quality; g.post.ApplyQuality(); });
+            Row(5, "God mode", () => g.godMode ? "ON" : "OFF", () => g.godMode = !g.godMode, () => g.godMode = !g.godMode);
+            UIKit.Btn("Done", p, C, new Vector2(fromPause ? 0 : -140, -250), new Vector2(240, 54), "DONE", () => { if (fromPause) Pause(); else Title(); });
+            if (!fromPause) UIKit.Btn("Wipe", p, C, new Vector2(140, -250), new Vector2(240, 54), "START OVER…", () => ConfirmWipe(), 20);
             Select(first);
         }
 

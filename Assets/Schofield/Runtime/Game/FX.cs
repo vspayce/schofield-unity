@@ -28,6 +28,7 @@ namespace Schofield
             mat.SetFloat("_Src", additive ? (float)BlendMode.One : (float)BlendMode.SrcAlpha);
             mat.SetFloat("_Dst", additive ? (float)BlendMode.One : (float)BlendMode.OneMinusSrcAlpha);
             mat.SetFloat("_Additive", additive ? 1 : 0);
+            mat.SetTexture("_Noise", Assets.Tex("cloud_noise"));
             mat.renderQueue = additive ? 3010 : 3000;
         }
 

@@ -385,7 +385,8 @@ namespace Schofield
             sky.Update(cam);
             fx.Update(paused ? 0 : Time.deltaTime, cam);
             water?.Update(paused ? 0 : rdt, cam, coach.pos);
-            post.Update(rdt);
+            post.scopeTarget = mode == "ride" && player != null ? player.scopeT : 0;
+            post.Update(rdt, mode == "ride" && !paused ? (coach.speed - coach.cruise - 2) / 9 : 0);
         }
 
         // Title cinematic: wide landscape shots between close ones, the coach on the right of frame

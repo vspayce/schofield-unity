@@ -43,7 +43,7 @@ namespace Schofield
             RenderSettings.sun = sun;
 
             RenderSettings.ambientMode = AmbientMode.Trilight;
-            float amb = L.hemiIntensity / Mathf.PI + L.env * 0.45f;
+            float amb = (L.hemiIntensity / Mathf.PI + L.env * 0.45f) * 1.25f;   // a little more sky in the shade (AO takes some back)
             RenderSettings.ambientSkyColor = L.hemiSky * amb * 1.1f;
             RenderSettings.ambientEquatorColor = Color.Lerp(L.hemiSky, L.hemiGround, 0.5f) * amb;
             RenderSettings.ambientGroundColor = L.hemiGround * amb * 0.9f;

@@ -66,9 +66,10 @@ namespace Schofield.EditorTools
             asset.supportsHDR = true;
             asset.msaaSampleCount = 1;
             asset.renderScale = 1f;
-            asset.supportsCameraDepthTexture = false;
-            asset.shadowDistance = 140f;
-            asset.shadowCascadeCount = 2;
+            // the depth texture feeds ambient occlusion, soft particles and the scope's depth of field
+            asset.supportsCameraDepthTexture = true;
+            asset.shadowDistance = 180f;
+            asset.shadowCascadeCount = 4;
             var so = new SerializedObject(asset);
             void Set(string prop, int v) { var p = so.FindProperty(prop); if (p != null) p.intValue = v; }
             Set("m_MainLightShadowmapResolution", 2048);
@@ -85,6 +86,7 @@ namespace Schofield.EditorTools
                 var rm = rso.FindProperty("m_RenderingMode"); if (rm != null) rm.intValue = 0;
                 rso.ApplyModifiedPropertiesWithoutUndo();
                 EditorUtility.SetDirty(rdObj);
+                AddAmbientOcclusion((ScriptableRendererData)rdObj);
             }
             GraphicsSettings.defaultRenderPipeline = asset;
             int level = QualitySettings.GetQualityLevel();
@@ -93,6 +95,38 @@ namespace Schofield.EditorTools
             PlayerSettings.colorSpace = ColorSpace.Linear;
             AssetDatabase.SaveAssets();
             return asset;
+        }
+
+        // Screen-space ambient occlusion from the depth buffer (our hand-written shaders have depth passes, not
+        // depth-normals): contact shadow under the coach, the horses, the porches and the rocks. Post turns it
+        // off on the "fast" graphics setting.
+        static void AddAmbientOcclusion(ScriptableRendererData rd)
+        {
+            ScreenSpaceAmbientOcclusion ao = null;
+            foreach (var f in rd.rendererFeatures) if (f is ScreenSpaceAmbientOcclusion a) ao = a;
+            if (!ao)
+            {
+                ao = ScriptableObject.CreateInstance<ScreenSpaceAmbientOcclusion>();
+                ao.name = "SSAO";
+                AssetDatabase.AddObjectToAsset(ao, rd);
+                rd.rendererFeatures.Add(ao);
+                var rso = new SerializedObject(rd);
+                var map = rso.FindProperty("m_RendererFeatureMap");
+                if (map != null)
+                {
+                    AssetDatabase.TryGetGUIDAndLocalFileIdentifier(ao, out string _, out long id);
+                    map.arraySize++;
+                    map.GetArrayElementAtIndex(map.arraySize - 1).longValue = id;
+                    rso.ApplyModifiedPropertiesWithoutUndo();
+                }
+            }
+            var so = new SerializedObject(ao);
+            void F(string n, float v) { var p = so.FindProperty("m_Settings." + n); if (p != null) { if (p.propertyType == SerializedPropertyType.Float) p.floatValue = v; else if (p.propertyType == SerializedPropertyType.Boolean) p.boolValue = v != 0; else p.intValue = (int)v; } }
+            F("Downsample", 1); F("AfterOpaque", 0); F("Source", 0);           // depth
+            F("NormalSamples", 1); F("Intensity", 0.7f); F("DirectLightingStrength", 0.3f);
+            F("Radius", 0.6f); F("Falloff", 60); F("Samples", 1); F("BlurQuality", 1); F("AOMethod", 1);
+            so.ApplyModifiedPropertiesWithoutUndo();
+            EditorUtility.SetDirty(ao); EditorUtility.SetDirty(rd);
         }
     }
 }
