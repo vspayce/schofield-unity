@@ -19,7 +19,7 @@ namespace Schofield
         AudioLowPassFilter muffle;
         public System.Action<string> onPlay;      // townsfolk listen for gunfire
 
-#if (UNITY_IOS || UNITY_TVOS) && !UNITY_EDITOR
+#if UNITY_IOS && !UNITY_EDITOR
         [DllImport("__Internal")] static extern void SC_PlaybackAudio();
 #endif
 
@@ -29,17 +29,31 @@ namespace Schofield
             DontDestroyOnLoad(go);
             I = go.AddComponent<Sound>();
             I.muffle = listener.gameObject.AddComponent<AudioLowPassFilter>();
-            I.muffle.cutoffFrequency = 22000;
+            I.muffle.cutoffFrequency = 1400;
+            I.muffle.enabled = false;            // only in slow-mo: a 22 kHz cutoff is above Nyquist at the 24 kHz the Apple TV runs at, and silences everything
+            // Apple TV can come up at 24 kHz; ask for 48 kHz (the session may still decide otherwise)
+            if (AudioSettings.outputSampleRate < 44100)
+            {
+                var want = AudioSettings.GetConfiguration(); want.sampleRate = 48000;
+                AudioSettings.Reset(want);
+            }
             I.musicVolume = PlayerPrefs.GetFloat("schofield.music", 0.55f);
             I.sfxVolume = PlayerPrefs.GetFloat("schofield.sfx", 1f);
-#if (UNITY_IOS || UNITY_TVOS) && !UNITY_EDITOR
+#if UNITY_IOS && !UNITY_EDITOR
+            // iPhone only: playback session so the ring/silent switch doesn't mute the game. Apple TV has no
+            // switch, and re-categorising the session under a running engine there can leave it silent.
             try { SC_PlaybackAudio(); } catch { }
 #endif
             for (int i = 0; i < 28; i++) I.NewSource();
+            if (Debug.isDebugBuild) I.StartCoroutine(I.Probe());
             var cfg = AudioSettings.GetConfiguration();
             var test = Assets.Clip("whip_crack");
             Debug.Log($"[audio] rate={AudioSettings.outputSampleRate} speaker={cfg.speakerMode} driver={AudioSettings.driverCapabilities} dsp={cfg.dspBufferSize} paused={AudioListener.pause} vol={AudioListener.volume} music={I.musicVolume} sfx={I.sfxVolume} clip={(test ? test.loadState + "/" + test.length.ToString("F2") + "s/" + test.channels + "ch" : "MISSING")}");
-            AudioSettings.OnAudioConfigurationChanged += changed => Debug.Log($"[audio] configuration changed (device {changed}) rate={AudioSettings.outputSampleRate} speaker={AudioSettings.GetConfiguration().speakerMode}");
+            AudioSettings.OnAudioConfigurationChanged += changed =>
+            {
+                Debug.Log($"[audio] configuration changed (device {changed}) rate={AudioSettings.outputSampleRate} speaker={AudioSettings.GetConfiguration().speakerMode}");
+                if (changed && I) I.Recover();
+            };
             return I;
         }
 
@@ -117,11 +131,31 @@ namespace Schofield
         public void SetRate(float r)
         {
             rate = r;
-            muffle.cutoffFrequency = r < 1 ? 1400 : 22000;
+            muffle.enabled = r < 1;
             foreach (var s in pool) if (s.isPlaying && basePitch.TryGetValue(s, out var bp)) s.pitch = bp * r;
         }
 
         public void Pause(bool on) => AudioListener.pause = on;
+
+        System.Collections.IEnumerator Probe()
+        {
+            double d0 = AudioSettings.dspTime;
+            yield return new WaitForSecondsRealtime(4);
+            var sb = new System.Text.StringBuilder();
+            sb.Append($"[audio] probe rate={AudioSettings.outputSampleRate} dsp {d0:F2}->{AudioSettings.dspTime:F2} paused={AudioListener.pause} vol={AudioListener.volume} listeners={FindObjectsByType<AudioListener>(FindObjectsSortMode.None).Length}");
+            foreach (var kv in loops) if (kv.Value.src) sb.Append($" | {kv.Key} playing={kv.Value.src.isPlaying} t={kv.Value.src.time:F1} vol={kv.Value.src.volume:F2}");
+            Debug.Log(sb.ToString());
+        }
+
+        /// the output device changed (HDMI renegotiated, headphones in or out): restart the engine on the new
+        /// route and pick the loops back up — otherwise some devices just go quiet
+        void Recover()
+        {
+            var was = new List<AudioSource>();
+            foreach (var a in GetComponentsInChildren<AudioSource>(true)) if (a.isPlaying && a.loop) was.Add(a);
+            AudioSettings.Reset(AudioSettings.GetConfiguration());
+            foreach (var a in was) if (a) a.Play();
+        }
 
         public void SetVolumes(float music, float sfx)
         {

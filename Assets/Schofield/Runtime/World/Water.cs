@@ -615,7 +615,7 @@ namespace Schofield
             float inside = ThroughFalls(cam);
             float vol = Mathf.Min(1, near * 0.8f + inside * 0.5f) * (Sound.I ? Sound.I.sfxVolume * Sound.I.master : 1);
             roar.volume = MathX.Damp(roar.volume, vol, 8, Time.unscaledDeltaTime);
-            roarLp.cutoffFrequency = MathX.Damp(roarLp.cutoffFrequency, 300 + 2400 * near + 7000 * inside, 10, Time.unscaledDeltaTime);
+            roarLp.cutoffFrequency = Mathf.Min(AudioSettings.outputSampleRate * 0.45f, MathX.Damp(roarLp.cutoffFrequency, 300 + 2400 * near + 7000 * inside, 10, Time.unscaledDeltaTime));
         }
 
         /// three seconds of looping stereo noise, mostly brown with a little hiss
