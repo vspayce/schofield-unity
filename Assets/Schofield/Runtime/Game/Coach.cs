@@ -196,6 +196,7 @@ namespace Schofield
         public void Dispose()
         {
             Object.Destroy(root);
+            driver?.anim.Dispose();
             foreach (var th in team) { th.h.anim.Dispose(); Object.Destroy(th.h.root); }
             foreach (var l in lines) if (l) Object.Destroy(l.gameObject);
             if (pole) Object.Destroy(pole.gameObject);
