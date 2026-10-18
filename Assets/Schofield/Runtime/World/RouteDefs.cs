@@ -235,7 +235,7 @@ namespace Schofield
                 blurb = "Cross a high timber trestle over the gorge before the road runs beneath the falls.",
                 seed = 1883, length = 2700, biome = "gorge", reward = 1800, wind = 1.1f, winding = 0.75f, billboards = 2,
                 wildlife = new WildDef(110, "goat", "goat", "bear", "hawk"),
-                gorge = new GorgeDef { side = 1, depth = 27, bridgeAt = 0.22f, bridgeLength = 300, bridgeWidth = 8.4f, bridgeCutHalf = 46, bridgeDepth = 76, fallsAt = 0.54f, fallsDrop = 34, fallsWidth = 24 },
+                gorge = new GorgeDef { side = 1, depth = 27, bridgeAt = 0.22f, bridgeLength = 300, bridgeWidth = 8.4f, bridgeCutHalf = 46, bridgeDepth = 76, fallsAt = 0.54f, fallsDrop = 34, fallsWidth = 46 },
                 light = new LightDef
                 {
                     sunElev = 32, sunAzim = 250, sunColor = C("#ffe6c4"), sunIntensity = 3.4f,

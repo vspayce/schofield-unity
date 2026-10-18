@@ -83,7 +83,9 @@ namespace Schofield
                     trestle = t > b0 - 340 && t < bs + def.gorge.bridgeLength * 0.5f + 20;
                     if (t <= b0 - 90 && t + step > b0 - 90) h += TrestleKink * def.gorge.side;
                 }
-                bool straight = i < 3 || t > len - 60 || inTown || trestle;
+                // and straight past the falls, so you see them ahead and then run along behind the sheet
+                bool fallsRun = def.gorge != null && def.gorge.fallsAt >= 0 && Mathf.Abs(t - len * def.gorge.fallsAt) < 170;
+                bool straight = i < 3 || t > len - 60 || inTown || trestle || fallsRun;
                 if (!straight) h += (noise.Noise(i * 0.23f, 5.1f) * 0.9f + (rand.Next() - 0.5f) * 0.35f) * def.winding;
                 x += Mathf.Sin(h) * step; z += Mathf.Cos(h) * step;
             }
@@ -320,7 +322,13 @@ namespace Schofield
         float GorgeHeight(float x, float z, float d, float s, float rh, float crown, float nat)
         {
             float sideD = d * riverSide;               // > 0 = the river side
-            float shelf = RoadHalf + 3.4f;
+            float shelf = RoadHalf + 3.4f, wall = 26;
+            if (hasFalls)
+            {
+                // along the falls the gorge wall drops straight off the road edge, so the sheet plunges to the river
+                float fk = 1 - MathX.Smoothstep(fallsWidth * 0.5f + 4, fallsWidth * 0.5f + 30, Mathf.Abs(s - fallsS));
+                shelf = Mathf.Lerp(shelf, RoadHalf + 1.4f, fk); wall = Mathf.Lerp(wall, 7, fk);
+            }
             float butt = noise.Fbm(x / 58 + 4, z / 58, 3) * 9;
             float gully = Mathf.Pow(Mathf.Abs(noise.Noise(x / 21 + 9, z / 21)), 0.7f) * 7;
             float fine = noise2.Fbm(x / 9, z / 9, 3) * 2.2f;
@@ -328,7 +336,7 @@ namespace Schofield
             float y;
             if (sideD > 0)
             {
-                float t = MathX.Smoothstep(shelf, shelf + 26, sideD + grain * 0.5f);
+                float t = MathX.Smoothstep(shelf, shelf + wall, sideD + grain * 0.5f * (wall / 26));
                 float bed = RiverBedAt(s) - 1.2f + noise.Fbm(x / 30, z / 30, 2) * 1.4f;
                 y = Mathf.Lerp(rh + crown, bed, t * t * (3 - 2 * t));
                 if (t > 0.05f && t < 0.97f)

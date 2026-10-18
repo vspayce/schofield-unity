@@ -16,6 +16,7 @@ namespace Schofield
         class Fall
         {
             public float s, d, lipY, botY, drop, halfW, span, phiRoad, cx, cz, ax, az, nx, nz, arc, thick = 3.2f;
+            public bool beside;            // runs alongside the road (you pass behind it) rather than across it
             public readonly List<Vector3> drips = new List<Vector3>();
             public float Lat(float phi) => span * (Mathf.Clamp01(phi) - phiRoad) / (1 - phiRoad);
             public Vector3 At(float phi)
@@ -239,11 +240,127 @@ namespace Schofield
             };
         }
 
+        /// The falls beside the road: the lip runs along the road just past its river-side edge, high on an
+        /// overhang that roofs the road, and the sheet arcs out and drops past you into the gorge. You see it
+        /// ahead on the straight, then drive along behind it.
+        Fall ResolveBeside(float s, float length, float lipH)
+        {
+            s = Mathf.Clamp(s, 0, route.len);
+            var fr = route.Frame(s);
+            float side = route.riverSide;
+            float roadY = route.RoadHeightAt(s);
+            float lipD = (Route.RoadHalf + 2.0f) * side;
+            float lipY = roadY + lipH;
+            var f = new Fall
+            {
+                s = s, d = lipD, lipY = lipY, halfW = length * 0.5f, span = 0, phiRoad = 0, beside = true,
+                cx = fr.x + fr.rx * lipD, cz = fr.z + fr.rz * lipD, ax = fr.tx, az = fr.tz, nx = fr.rx * side, nz = fr.rz * side,
+                arc = 6.5f,
+            };
+            // where the sheet meets the gorge wall (or the river): march down the arc until it hits ground
+            float bot = LevelAt(s) - 0.4f, guess = lipY - bot, hit = bot;
+            for (float y = lipY - 1; y > bot; y -= 0.5f)
+            {
+                float ph = (lipY - y) / guess, o = f.arc * Mathf.Sqrt(ph);
+                float minG = float.MaxValue;
+                foreach (float a in new[] { -0.6f, 0f, 0.6f })
+                {
+                    float gx = f.cx + f.nx * o + f.ax * a * f.halfW, gz = f.cz + f.nz * o + f.az * a * f.halfW;
+                    minG = Mathf.Min(minG, route.Height(gx, gz));
+                }
+                if (minG >= y - 1) { hit = y - 2.5f; f.arc *= Mathf.Sqrt(Mathf.Clamp01(ph)); break; }
+            }
+            f.botY = hit; f.drop = Mathf.Max(4, lipY - hit);
+            return f;
+        }
+
+        /// the rock roof over the road behind the falls: a slab of boulders from the hillside out to the lip,
+        /// a wall of rock holding it up on the uphill side, a ragged dripping edge and pillars at each end
+        void BuildOverhang(Fall f)
+        {
+            var rnd = new Rng(route.def.seed * 31 + 5);
+            float roadY = route.RoadHeightAt(f.s);
+            float lip = f.lipY - roadY;
+            float L = f.halfW + 6;
+            var rocks = new List<(float d, float y, float n, float r, float sy)>();
+            void Add(float d, float y, float n, float r, float sy = 1) => rocks.Add((d, y, n, r, sy));
+            Vector3 W(float d, float y, float n) => new Vector3(f.cx + f.ax * d + f.nx * n, roadY + y, f.cz + f.az * d + f.nz * n);
+            float Ground(float d, float n) { var p = W(d, 0, n); return route.Height(p.x, p.z) - roadY; }
+            float roadBack = -(Route.RoadHalf * 2 + 2.4f);            // n of the uphill road edge (lip is n = 0)
+            // roof slab, two courses
+            for (float d = -L - 4; d <= L + 4; d += 2.3f + rnd.Next() * 0.4f)
+                for (float n = -1.4f; n > roadBack - 12; n -= 2.9f)
+                {
+                    float r = 2.4f + rnd.Next() * 0.8f;
+                    Add(d + (rnd.Next() - 0.5f) * 0.9f, lip - 0.4f - r * 0.65f + (rnd.Next() - 0.5f) * 0.5f, n + (rnd.Next() - 0.5f) * 0.8f, r, 0.7f);
+                    if (rnd.Next() < 0.6f) Add(d, lip + 0.9f + rnd.Next(), n - 1.2f, 2 + rnd.Next(), 0.6f);
+                }
+            // ragged dripping edge under the lip, clear of the road
+            for (float d = -L; d <= L; d += 1.8f + rnd.Next() * 1.6f)
+                if (rnd.Next() < 0.75f) Add(d, lip - 3.2f - rnd.Next() * 1.8f, -1.6f - rnd.Next() * 1.2f, 1.1f + rnd.Next() * 0.8f, 1.2f);
+            // the hillside wall holding it up, just beyond the uphill road edge
+            for (float d = -L - 4; d <= L + 4; d += 2.4f)
+            {
+                float g = Mathf.Min(0, Ground(d, roadBack - 3)) - 1;
+                for (float y = g; y < lip; y += 2.3f)
+                    foreach (float n in new[] { roadBack - 2.6f, roadBack - 5.5f })
+                        Add(d + (rnd.Next() - 0.5f) * 1.2f, y, n + (rnd.Next() - 0.5f), 2.5f + rnd.Next() * 0.8f, 0.95f);
+            }
+            MeshRocks(f, rocks, W, -L, L, lip, roadY, rnd);
+            foreach (var R in rocks) if (R.y < lip - 2.5f && R.n > -3f && Mathf.Abs(R.d) < L) f.drips.Add(W(R.d, R.y - R.r * R.sy * 0.8f, R.n));
+        }
+
+        void MeshRocks(Fall f, List<(float d, float y, float n, float r, float sy)> rocks, System.Func<float, float, float, Vector3> World, float inner, float outer, float lip, float roadY, Rng rnd)
+        {
+            var nz = new Simplex2D(route.def.seed * 7 + 3);
+            var (iv, it) = MeshKit.Icosphere(Application.isMobilePlatform ? 1 : 2);
+            var B = new MeshKit.Builder();
+            var verts = new Vector3[iv.Length];
+            Color wetCol = new Color(0.62f, 0.66f, 0.68f), moss = new Color(0.72f, 0.86f, 0.56f);
+            foreach (var R in rocks)
+            {
+                float ox = rnd.Next() * 50, oy = rnd.Next() * 50;
+                var q = Quaternion.Euler(rnd.Next() * 360, rnd.Next() * 360, rnd.Next() * 360);
+                var c0 = World(R.d, R.y, R.n);
+                for (int j = 0; j < iv.Length; j++)
+                {
+                    var p = iv[j];
+                    float a = nz.Noise(p.x * 1.1f + ox, p.y * 1.1f + p.z * 0.7f + oy);
+                    float b = nz.Noise(p.z * 2.7f - oy, p.x * 2.7f + p.y * 1.3f + ox);
+                    float facet = Mathf.Round(a * 3) / 3;
+                    p *= 1 + facet * 0.15f + a * 0.1f + b * 0.07f;
+                    p = q * p;
+                    p = new Vector3(p.x * R.r, p.y * R.r * R.sy, p.z * R.r);
+                    verts[j] = c0 + new Vector3(f.ax * p.x + f.nx * p.z, p.y, f.az * p.x + f.nz * p.z);
+                }
+                for (int i = 0; i < it.Length; i += 3)
+                {
+                    Vector3 A0 = verts[it[i]], A1 = verts[it[i + 1]], A2 = verts[it[i + 2]];
+                    var nn = Vector3.Cross(A1 - A0, A2 - A0).normalized;
+                    var cen = (A0 + A1 + A2) / 3;
+                    float dx = cen.x - f.cx, dz = cen.z - f.cz;
+                    float ld = dx * f.ax + dz * f.az, ln = dx * f.nx + dz * f.nz, yRel = cen.y - roadY;
+                    bool inCh = ld > inner - 0.5f && ld < outer + 0.5f;
+                    bool isWet = inCh && (ln > -2.5f || yRel > lip - 0.6f);
+                    var col = Color.white;
+                    if (nn.y > 0.55f && !isWet) col = Color.Lerp(col, moss, 0.55f * (nn.y - 0.55f) / 0.45f + 0.2f);
+                    if (isWet) col *= wetCol;
+                    if (nn.y < -0.3f) col *= 0.72f + 0.28f * (1 + nn.y);
+                    col *= 0.86f + nz.Noise(cen.x * 0.35f, cen.z * 0.35f + cen.y * 0.2f) * 0.14f; col.a = 1;
+                    B.Flat(new[] { A0, A1, A2 }, new[] { 0, 1, 2 }, col, RockArches.TriplanarUV);
+                }
+            }
+            var mesh = B.Build("Falls overhang"); owned.Add(mesh);
+            var mat = Assets.VLit(Color.Lerp(route.def.terrain.rockTint, Color.white, 0.55f), 0.08f, 0, "rock");
+            owned.Add(mat);
+            MeshKit.Show("Falls Overhang", mesh, mat, root.transform);
+        }
+
         void BuildFalls(Material curtainMat, Material poolMat)
         {
-            var f = Resolve(route.fallsS, 0, route.fallsWidth, route.fallsDrop + 5, 11);
+            var f = ResolveBeside(route.fallsS, route.fallsWidth, 13);
             falls.Add(f);
-            BuildArch(f);
+            BuildOverhang(f);
             const int SHELLS = 3, ROWS = 26, LIP = 3, COLS = 30, VR = ROWS + LIP + 1;
             var v = new List<Vector3>(); var u0 = new List<Vector2>(); var u1 = new List<Vector2>(); var u2 = new List<Vector2>(); var t = new List<int>();
             for (int k = 0; k < SHELLS; k++)
@@ -290,7 +407,7 @@ namespace Schofield
                 float l0 = f.Lat(0);
                 for (int r = 0; r <= SR; r++)
                 {
-                    float back = -10f * (1 - r / (float)SR);          // metres upstream of the lip
+                    float back = (f.beside ? -16f : -10f) * (1 - r / (float)SR);          // metres upstream of the lip
                     for (int c = 0; c <= SC; c++)
                     {
                         float u = c / (float)SC, e = Mathf.Abs(u * 2 - 1);
@@ -312,7 +429,8 @@ namespace Schofield
                 MeshKit.Show("Falls Stream", sm, riverMat, root.transform, false);
             }
 
-            // the churning pool where the sheet lands
+            // the churning pool where the sheet lands (only if it lands in the river, not on the gorge wall)
+            if (f.beside && f.botY > LevelAt(f.s) + 1.5f) return;
             const int RING = 6, SEG = 22;
             float pRad = Mathf.Max(8, f.halfW * 1.7f);
             var foot = f.At(1);
@@ -471,7 +589,7 @@ namespace Schofield
                     mist.Spawn(p, new Vector3((Random.value - 0.5f) * 7 + f.nx * 3, 3.5f + Random.value * 7, (Random.value - 0.5f) * 7 + f.nz * 3),
                         1.1f + Random.value * 1.1f, 0.5f, 3.4f, foamCol, 0.55f, 1, 1.9f, 5.5f, 0, 0.08f);
                 }
-                if (dist < 160)
+                if (dist < 160 && !f.beside)
                 {
                     // where the sheet slams onto the roadway: white bursting back up
                     roadAcc += dt * 16 * (0.4f + near);

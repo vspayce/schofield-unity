@@ -116,7 +116,7 @@ namespace Schofield
                 float t = first + (last - first) * ((i + 0.5f) / count) + (rnd.Next() - 0.5f) * 0.05f;
                 float s = route.len * t;
                 if (s < 80 || s > route.len - 120) continue;
-                if (route.OnBridge(s - 10) || route.OnBridge(s + 10) || route.InTown(s) || (route.hasFalls && Mathf.Abs(s - route.fallsS) < 40)) continue;
+                if (route.OnBridge(s - 10) || route.OnBridge(s + 10) || route.InTown(s) || (route.hasFalls && Mathf.Abs(s - route.fallsS) < route.fallsWidth * 0.5f + 30)) continue;
                 list.Add(new Board(route, root.transform, Ads[(i + adOffset) % Ads.Length], s, rnd.Next() < 0.5f ? -1 : 1, owned));
             }
         }

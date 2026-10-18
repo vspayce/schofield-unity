@@ -94,7 +94,7 @@ namespace Schofield
             if (poles)
                 for (float s = 30; s < r.len; s += 42)
                 {
-                    if (r.InTown(s) || r.OnBridge(s - 12) || r.OnBridge(s + 12) || (r.hasFalls && Mathf.Abs(s - r.fallsS) < 30)) continue;
+                    if (r.InTown(s) || r.OnBridge(s - 12) || r.OnBridge(s + 12) || (r.hasFalls && Mathf.Abs(s - r.fallsS) < r.fallsWidth * 0.5f + 16)) continue;
                     var f = r.Frame(s);
                     float ps = r.def.gorge != null ? -r.riverSide : 1;     // on the ledge, the wall side
                     Push("TelegraphPole", f.x + f.rx * 9.5f * ps, f.z + f.rz * 9.5f * ps, Mathf.Atan2(f.tx, f.tz) + Mathf.PI / 2 + (rnd.Next() - 0.5f) * 0.1f);
