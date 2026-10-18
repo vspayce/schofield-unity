@@ -12,7 +12,7 @@ namespace Schofield
         public Camera cam;
         public Transform world;
         public GameInput input;
-        public Hud hud; public Menus menus; public Post post;
+        public Hud hud; public Menus menus; public Post post; ControllerGate gate;
         public Route route; public Terrain terrain; public Scatter scatter; public Sky sky; public Towns towns;
         public GorgeBridge bridge; public RockArches arches; public Water water;
         public Escorts escorts; public MissionDef mission = Missions.All["mail"];
@@ -57,6 +57,7 @@ namespace Schofield
             input = new GameInput();
             hud = new Hud(input);
             menus = new Menus(this);
+            gate = new ControllerGate();
             post = new Post(transform);
         }
 
@@ -315,6 +316,8 @@ namespace Schofield
         {
             float rdt = Mathf.Min(0.05f, Time.unscaledDeltaTime);
             input.Poll(rdt);
+            gate.Update();
+            if (gate.Blocking && mode == "ride" && !paused && !over) Pause();     // Apple TV with no controller
             if (paused) { Time.timeScale = 0; input.Consume(); return; }
             if (later != null) { laterT -= rdt; if (laterT <= 0) { var f = later; later = null; f(); } }
             timeScale = MathX.Damp(timeScale, targetScale, 8, rdt);

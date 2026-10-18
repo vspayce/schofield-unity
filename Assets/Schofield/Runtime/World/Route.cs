@@ -61,7 +61,7 @@ namespace Schofield
         }
 
         // ------------------------------------------------------------------ path
-        public static float TrestleKink = 0.45f;
+        public static float TrestleKink = 0.8f;
         void BuildPath()
         {
             var pts = new System.Collections.Generic.List<Vector3>();
@@ -353,8 +353,9 @@ namespace Schofield
         public float RavineHeight(float x, float z, float d, float s)
         {
             float half = (bridgeS1 - bridgeS0) * 0.5f, mid = (bridgeS0 + bridgeS1) * 0.5f;
-            float wob = noise.Noise(d / 40 + 3.3f, 7.1f) * 14;                       // the ravine meanders a little
-            float u = (s - mid - wob) / (half + 6);
+            // the ravine meanders away from the road, but runs dead true under the deck so both ends land on rock
+            float wob = noise.Noise(d / 40 + 3.3f, 7.1f) * 14 * MathX.Smoothstep(18, 80, Mathf.Abs(d));
+            float u = (s - mid - wob) / (half - 3);
             float sideD = d * riverSide;
             float inland = Mathf.Max(0, -sideD);
             float depth = bridgeDepth * Mathf.Clamp01(1 - inland / 260f);           // shallower as it climbs
