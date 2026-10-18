@@ -57,8 +57,13 @@ namespace Schofield
             g.hud.SetWeapon(weapon, ammo[weapon.id]);
         }
 
-        public bool CanScope => weapon.zoom > 1;
-        public float Zoom => CanScope ? 1 + (weapon.zoom - 1) * scopeT : 1;
+        /// Dead Eye is switched off for now (no meter, no button, no binding)
+        public const bool DeadEyeEnabled = false;
+        /// every gun can aim down the sights; long guns with glass zoom further and get the scope ring
+        public bool CanScope => true;
+        public float ScopeZoom => Mathf.Max(weapon.zoom, 1.8f);
+        public bool HasGlass => weapon.zoom >= 3;
+        public float Zoom => 1 + (ScopeZoom - 1) * scopeT;
 
         public void SetScope(bool on)
         {
@@ -66,7 +71,7 @@ namespace Schofield
             if (on == scoped) return;
             scoped = on;
             Sound.I.Play("ui_click", 0.4f, on ? 0.7f : 0.55f);
-            g.hud.SetScope(on);
+            g.hud.SetScope(on, HasGlass);
         }
 
         public Vector3 HeadPos
@@ -125,7 +130,7 @@ namespace Schofield
             if (inp.reload && reloading <= 0 && ammo[W.id] < W.mag) Reload();
             if (inp.dynamite) g.dynamite?.Throw();
 
-            if (inp.deadeye)
+            if (DeadEyeEnabled && inp.deadeye)
             {
                 if (deadeyeOn) EndDeadeye();
                 else if (deadeye >= 0.2f) StartDeadeye();

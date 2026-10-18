@@ -343,14 +343,26 @@ namespace Schofield
                 float t = MathX.Smoothstep(shelf, shelf + 34, -sideD + grain * 0.7f);
                 y = Mathf.Lerp(rh + crown, Mathf.Max(nat, rh + 12) + grain * 0.8f, t * t * (3 - 2 * t));
             }
-            if (hasBridge && s >= bridgeS0 && s <= bridgeS1)
-            {
-                float along = MathX.Smoothstep(0, 18, s - bridgeS0) * MathX.Smoothstep(0, 18, bridgeS1 - s);
-                float across = 1 - MathX.Smoothstep(bridgeWidth * 0.5f + 1, bridgeCutHalf, Mathf.Abs(d));
-                float floor = RoadHeightAt(s) - bridgeDepth + noise2.Fbm(x / 18, z / 18, 2) * 0.9f;
-                y = Mathf.Lerp(y, floor, along * across);
-            }
+            if (hasBridge && s >= bridgeS0 - 30 && s <= bridgeS1 + 30) y = Mathf.Min(y, RavineHeight(x, z, d, s));
             return y;
+        }
+
+        /// The ravine the trestle spans: a side valley coming down off the mountain, straight across the road
+        /// and out into the gorge. Deepest under the middle of the bridge, walls rising to the abutments; the
+        /// floor climbs inland (the creek comes down the mountain) and falls away toward the river.
+        public float RavineHeight(float x, float z, float d, float s)
+        {
+            float half = (bridgeS1 - bridgeS0) * 0.5f, mid = (bridgeS0 + bridgeS1) * 0.5f;
+            float wob = noise.Noise(d / 40 + 3.3f, 7.1f) * 14;                       // the ravine meanders a little
+            float u = (s - mid - wob) / (half + 6);
+            float sideD = d * riverSide;
+            float inland = Mathf.Max(0, -sideD);
+            float depth = bridgeDepth * Mathf.Clamp01(1 - inland / 260f);           // shallower as it climbs
+            float shape = Mathf.Pow(Mathf.Clamp01(1 - u * u), 0.55f);                // steep walls, a narrow floor
+            float rock = noise.Fbm(x / 14, z / 14, 3) * 3.2f + Mathf.Abs(noise2.Noise(x / 7, z / 7)) * 1.6f;
+            float floor = RoadHeightAt(s) - depth * shape + inland * 0.12f * shape + rock * shape;
+            if (sideD > 0) floor = Mathf.Min(floor, Mathf.Lerp(floor, RiverBedAt(s), MathX.Smoothstep(0, 40, sideD)));
+            return floor;
         }
 
         /// bed height under the river at station s: a steady fall down the valley, the road ledge above it

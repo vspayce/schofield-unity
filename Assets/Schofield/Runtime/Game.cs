@@ -385,7 +385,7 @@ namespace Schofield
             sky.Update(cam);
             fx.Update(paused ? 0 : Time.deltaTime, cam);
             water?.Update(paused ? 0 : rdt, cam, coach.pos);
-            post.scopeTarget = mode == "ride" && player != null ? player.scopeT : 0;
+            post.scopeTarget = mode == "ride" && player != null && player.HasGlass ? player.scopeT : 0;
             post.Update(rdt, mode == "ride" && !paused ? (coach.speed - coach.cruise - 2) / 9 : 0);
         }
 

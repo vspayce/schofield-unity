@@ -355,12 +355,11 @@ namespace Schofield
             T(p, new Vector2(0, 275), new Vector2(800, 50), "How to Ride Shotgun", 38, UIKit.Paper);
             bool pad = !touch && (g.input.pad || GameInput.TV);
             string s = (touch
-                ? "<b>Aim:</b> drag anywhere on the right. Dragging from FIRE aims while you shoot.\n<b>Fire / Reload / Swap:</b> buttons at bottom right. Swap between your sidearm and long gun any time.\n<b>Whip / Rein:</b> buttons at left. Hold Rein to stop; whip to pull away. The team tires if you whip too long.\n"
+                ? "<b>Aim:</b> drag anywhere on the right, or put your thumb down anywhere on the left for a joystick. Dragging from FIRE aims while you shoot.\n<b>Fire / Reload / Swap:</b> buttons at bottom right. Swap between your sidearm and long gun any time.\n<b>Whip / Rein:</b> buttons at left. Hold Rein to stop; whip to pull away. The team tires if you whip too long.\n"
                 : pad
                 ? "<b>Aim:</b> left stick.  <b>Fire:</b> right trigger (hold for the repeaters).  <b>Reload:</b> X.  <b>Swap guns:</b> Y.\n<b>Whip:</b> right stick up.  <b>Rein in:</b> right stick down; hold it to stop. The team tires if you whip too long.\n"
                 : "<b>Aim:</b> mouse.  <b>Fire:</b> click.  <b>Reload:</b> R.  <b>Swap:</b> Q.  <b>Whip:</b> W / Shift.  Hold <b>Rein:</b> S to stop.\n")
-                + $"<b>Scope:</b> {(touch ? "the scope button" : pad ? "left trigger" : "F")}, long guns only. Magnifies for the men on the ridges.\n"
-                + $"<b>Dead Eye:</b> {(touch ? "the eye button" : pad ? "left shoulder (LB)" : "E or right click")}. Time slows. Sweep across outlaws to mark them, then fire to drop every one.\n"
+                + $"<b>Aim / scope:</b> {(touch ? "the scope button" : pad ? "left trigger" : "F or right click")}. Every gun aims down the sights; rifles with glass zoom right in for the men on the ridges.\n"
                 + $"<b>Dynamite:</b> {(touch ? "the dynamite button" : pad ? "right shoulder (RB)" : "G")}. Three sticks per run; throw into a group to blast riders from their horses.\n"
                 + (pad ? "<b>Pause:</b> the Menu button.\n\n" : "\n")
                 + "<b>Your health</b> heals itself after four seconds without being hit. Shoot a buffalo, bear or goat and the meat restores more.\n"

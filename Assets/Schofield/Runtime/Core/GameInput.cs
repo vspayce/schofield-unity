@@ -28,6 +28,8 @@ namespace Schofield
         public readonly Dictionary<string, RectTransform> buttons = new Dictionary<string, RectTransform>();
         readonly Dictionary<int, (string role, Vector2 last)> fingers = new Dictionary<int, (string, Vector2)>();
         public readonly HashSet<string> held = new HashSet<string>();   // buttons under a finger (for the pressed look)
+        // floating aim stick on a phone (left half of the screen): where the thumb landed and how far it has pushed
+        public Vector2? stickOrigin; public Vector2 stickOffset; int stickId = -1;
 
         public GameInput()
         {
@@ -42,7 +44,7 @@ namespace Schofield
         public void SetEnabled(bool v)
         {
             enabled = v;
-            if (!v) { fireHeld = false; whipKey = brakeKey = false; fingers.Clear(); held.Clear(); Unlock(); }
+            if (!v) { fireHeld = false; whipKey = brakeKey = false; fingers.Clear(); held.Clear(); stickOrigin = null; stickId = -1; Unlock(); }
         }
 
         public void Lock()
@@ -74,7 +76,8 @@ namespace Schofield
             Keys();
             MouseAim();
             Pad(rdt);
-            Touches();
+            Touches(rdt);
+            ApplyStick(rdt);
             if (TV) pad = true;
         }
 
@@ -92,7 +95,6 @@ namespace Schofield
             if (k == null) return;
             if (k.rKey.wasPressedThisFrame) reload = true;
             if (k.qKey.wasPressedThisFrame || k.digit1Key.wasPressedThisFrame || k.digit2Key.wasPressedThisFrame || k.tabKey.wasPressedThisFrame) swap = true;
-            if (k.eKey.wasPressedThisFrame || k.spaceKey.wasPressedThisFrame) deadeye = true;
             if (k.fKey.wasPressedThisFrame || k.zKey.wasPressedThisFrame) scope = true;
             if (k.gKey.wasPressedThisFrame) dynamite = true;
             whipKey = k.wKey.isPressed || k.leftShiftKey.isPressed;
@@ -116,8 +118,7 @@ namespace Schofield
             dy -= d.y * 0.0022f * sens;          // screen y runs up in Unity, down in the browser
             if (m.leftButton.wasPressedThisFrame) { fireHeld = true; firePressed = true; pad = false; }
             if (m.leftButton.wasReleasedThisFrame) fireHeld = false;
-            if (m.rightButton.wasPressedThisFrame) deadeye = true;
-            if (m.middleButton.wasPressedThisFrame) scope = true;
+            if (m.rightButton.wasPressedThisFrame || m.middleButton.wasPressedThisFrame) scope = true;
         }
 
         bool padFire;
@@ -144,7 +145,6 @@ namespace Schofield
             if (g.leftTrigger.wasPressedThisFrame) { scope = true; pad = true; }
             if (g.buttonNorth.wasPressedThisFrame) { swap = true; pad = true; }
             if (g.rightShoulder.wasPressedThisFrame) { dynamite = true; pad = true; }
-            if (g.leftShoulder.wasPressedThisFrame) { deadeye = true; pad = true; }
             if (g.buttonWest.wasPressedThisFrame) { reload = true; pad = true; }
             if (g.dpad.left.wasPressedThisFrame || g.dpad.right.wasPressedThisFrame) { swap = true; pad = true; }
             bool whip = g.buttonSouth.isPressed || ls.y > 0.6f, brake = g.buttonEast.isPressed || ls.y < -0.6f;
@@ -153,7 +153,7 @@ namespace Schofield
             whipKey |= whip; brakeKey |= brake;
         }
 
-        void Touches()
+        void Touches(float rdt)
         {
             var ts = Touchscreen.current;
             if (ts == null || !touch) return;
@@ -170,6 +170,8 @@ namespace Schofield
                     string role = "aim";
                     foreach (var kv in buttons)
                         if (kv.Value && kv.Value.gameObject.activeInHierarchy && RectTransformUtility.RectangleContainsScreenPoint(kv.Value, pos, null)) { role = kv.Key; break; }
+                    // a thumb landing on empty screen on the left half grabs the floating stick
+                    if (role == "aim" && pos.x < Screen.width * 0.5f && stickId < 0) { role = "stick"; stickId = id; stickOrigin = pos; stickOffset = Vector2.zero; }
                     fingers[id] = (role, pos);
                     pad = false;
                     switch (role)
@@ -188,7 +190,8 @@ namespace Schofield
                 {
                     if (phase == UnityEngine.InputSystem.TouchPhase.Moved || phase == UnityEngine.InputSystem.TouchPhase.Stationary)
                     {
-                        if (f.role == "aim" || f.role == "fire")
+                        if (f.role == "stick") stickOffset = Vector2.ClampMagnitude(pos - stickOrigin.Value, StickRadiusPx);
+                        else if (f.role == "aim" || f.role == "fire")
                         {
                             var d = pos - f.last;
                             dx += d.x * k; dy -= d.y * k;
@@ -198,11 +201,26 @@ namespace Schofield
                     else if (phase == UnityEngine.InputSystem.TouchPhase.Ended || phase == UnityEngine.InputSystem.TouchPhase.Canceled)
                     {
                         if (f.role == "fire") fireHeld = false;
+                        if (f.role == "stick") { stickId = -1; stickOrigin = null; stickOffset = Vector2.zero; }
                         held.Remove(f.role);
                         fingers.Remove(id);
                     }
                 }
             }
+        }
+
+        float StickRadiusPx => 60 * Mathf.Max(1, Screen.dpi > 0 ? Screen.dpi / 163f : 2);
+
+        /// the floating stick turns the view like a controller stick: gentle near the centre, fast at the rim
+        void ApplyStick(float rdt)
+        {
+            if (!stickOrigin.HasValue) return;
+            var v = stickOffset / StickRadiusPx;
+            float mag = v.magnitude;
+            if (mag < 0.08f) return;
+            float k = Mathf.Pow((mag - 0.08f) / 0.92f, 1.7f) / mag;
+            dx += v.x * k * 2.4f * rdt * sens;
+            dy -= v.y * k * 1.5f * rdt * sens;
         }
 
         /// menus: any "confirm" from keys, pad or a click

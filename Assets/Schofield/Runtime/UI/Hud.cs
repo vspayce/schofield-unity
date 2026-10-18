@@ -23,13 +23,13 @@ namespace Schofield
         readonly List<Image> chevs = new List<Image>(); readonly List<RectTransform> brackets = new List<RectTransform>();
         readonly List<(Image im, float until)> dirs = new List<(Image, float)>();
         readonly List<Text> marks = new List<Text>();
-        Image scopeRing, scopeDark;
+        Image scopeRing, scopeDark, stickBase, stickKnob;
         float bannerUntil, hpFlashUntil, coachFlashUntil; bool hpHeavy; int lastCoach = -1;
         WeaponDef weapon; string ammoMode;
         readonly Dictionary<string, Image> buttons = new Dictionary<string, Image>();
         Text dynCount, dynCountTouch, hint; bool hintPad = true;
-        public const string PadHint = "Left stick aim · RT fire · LT scope · X reload · Y swap · LB Dead Eye · RB dynamite · Right stick up whip, down rein · Menu pause";
-        const string KeysHint = "Mouse aim · Click fire · F scope · R reload · Q swap · E Dead Eye · G dynamite · Hold S to stop, W to whip · Esc pause · or use a controller";
+        public const string PadHint = "Left stick aim · RT fire · LT aim/scope · X reload · Y swap · RB dynamite · Right stick up whip, down rein · Menu pause";
+        const string KeysHint = "Mouse aim · Click fire · F or right click aim/scope · R reload · Q swap · G dynamite · Hold S to stop, W to whip · Esc pause · or use a controller";
         readonly GameInput input;
 
         public Hud(GameInput input)
@@ -94,7 +94,7 @@ namespace Schofield
             hpFill = Meter("Health", "health_heart", my, MathX.Hex("#c8402c"), out hpIcon);
             coachFill = Meter("Coach", "coach_icon", my - 38, MathX.Hex("#c9a04a"), out _);
             coachPct = UIKit.Txt("Pct", safe, new Vector2(0, 1), new Vector2(250, my - 38), new Vector2(60, 24), "100%", 16, UIKit.Paper, TextAnchor.MiddleLeft, true);
-            deFill = Meter("DeadEye", "deadeye_icon", my - 76, MathX.Hex("#e8c26a"), out _);
+            if (Player.DeadEyeEnabled) deFill = Meter("DeadEye", "deadeye_icon", my - 76, MathX.Hex("#e8c26a"), out _);
 
             // ammo, top right under the bounty (where the web game has it, clear of the touch buttons)
             var br = new Vector2(1, 1);
@@ -140,8 +140,18 @@ namespace Schofield
             B("fire", "btn_fire", "FIRE", R, new Vector2(-152, 155), 170);
             B("reload", "btn_reload", "RELOAD", R, new Vector2(-322, 104), 100);
             B("swap", "btn_swap", "SWAP", R, new Vector2(-137, 344), 96);
-            B("deadeye", "btn_deadeye", "DEAD EYE", L, new Vector2(120, 287), 130);
-            B("scope", null, "SCOPE", L, new Vector2(268, 287), 96);
+            if (Player.DeadEyeEnabled) B("deadeye", "btn_deadeye", "DEAD EYE", L, new Vector2(120, 287), 130);
+            // scope: a proper visible button where Dead Eye was — dark disc, brass ring, sight glyph
+            var sc = B("scope", null, "SCOPE", L, new Vector2(120, 287), 120);
+            var rim = UIKit.Img("rim", sc.transform, new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(120, 120), UIKit.Ring, UIKit.Gold); rim.raycastTarget = false;
+            var glyph = UIKit.Img("ring", sc.transform, new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(54, 54), UIKit.Ring, UIKit.Paper); glyph.raycastTarget = false;
+            UIKit.Img("h", sc.transform, new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(66, 3), null, UIKit.Paper).raycastTarget = false;
+            UIKit.Img("v", sc.transform, new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(3, 66), null, UIKit.Paper).raycastTarget = false;
+            // the floating aim stick (left half of the screen): base + knob, shown while a thumb is on it
+            stickBase = UIKit.Img("StickBase", layer, new Vector2(0, 0), Vector2.zero, new Vector2(220, 220), UIKit.Ring, new Color(1, 1, 1, 0.35f));
+            stickKnob = UIKit.Img("StickKnob", layer, new Vector2(0, 0), Vector2.zero, new Vector2(90, 90), UIKit.Disc, new Color(1, 1, 1, 0.45f));
+            stickBase.raycastTarget = stickKnob.raycastTarget = false;
+            stickBase.gameObject.SetActive(false); stickKnob.gameObject.SetActive(false);
             var dyn = B("dynamite", null, "DYNAMITE", R, new Vector2(-302, 272), 104);
             dynCountTouch = UIKit.Txt("n", dyn.transform, new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(104, 104), "3", 34, UIKit.Paper, TextAnchor.MiddleCenter, true);
             B("whip", "btn_whip", "WHIP", L, new Vector2(266, 111), 96);
@@ -217,9 +227,9 @@ namespace Schofield
             bannerUntil = Time.unscaledTime + secs;
         }
 
-        public void SetScope(bool on)
+        public void SetScope(bool on, bool glass = true)
         {
-            scopeRing.gameObject.SetActive(on);
+            scopeRing.gameObject.SetActive(on && glass);
             if (buttons.TryGetValue("scope", out var b)) b.color = on ? UIKit.Gold : new Color(0.16f, 0.1f, 0.06f, 0.8f);
         }
 
@@ -260,16 +270,27 @@ namespace Schofield
             float now = Time.unscaledTime;
             var p = game.player; var c = game.coach; var cam = game.cam;
             void Bar(Image f, float v) { f.rectTransform.sizeDelta = new Vector2(150 * Mathf.Clamp01(v), 10); }
-            Bar(hpFill, p.hp / 100); Bar(coachFill, c.hp / 100); Bar(deFill, p.deadeye);
+            Bar(hpFill, p.hp / 100); Bar(coachFill, c.hp / 100); if (deFill) Bar(deFill, p.deadeye);
             hpFill.color = p.hp < 30 ? UIKit.Blood : MathX.Hex("#c8402c");
             float pulse = now < hpFlashUntil ? (hpHeavy ? 1.5f : 1.25f) : 1;
             hpIcon.rectTransform.localScale = Vector3.one * pulse;
-            deFill.color = p.deadeyeOn ? Color.white : p.deadeye >= 0.2f ? MathX.Hex("#e8c26a") : new Color(0.6f, 0.5f, 0.3f);
+            if (deFill) deFill.color = p.deadeyeOn ? Color.white : p.deadeye >= 0.2f ? MathX.Hex("#e8c26a") : new Color(0.6f, 0.5f, 0.3f);
             int cp = Mathf.Max(0, Mathf.RoundToInt(c.hp));
             if (cp != lastCoach) { if (lastCoach >= 0 && cp < lastCoach) coachFlashUntil = now + 0.4f; lastCoach = cp; coachPct.text = cp + "%"; }
             coachPct.color = now < coachFlashUntil ? UIKit.Blood : UIKit.Paper;
             if (buttons.TryGetValue("deadeye", out var de)) de.color = p.deadeye >= 0.2f || p.deadeyeOn ? Color.white : new Color(1, 1, 1, 0.4f);
-            if (buttons.TryGetValue("scope", out var sb) && !p.scoped) sb.color = p.CanScope ? new Color(0.16f, 0.1f, 0.06f, 0.8f) : new Color(0.16f, 0.1f, 0.06f, 0.3f);
+            if (buttons.TryGetValue("scope", out var sb) && !p.scoped) sb.color = new Color(0.16f, 0.1f, 0.06f, 0.8f);
+            if (stickBase)
+            {
+                bool on = input.stickOrigin.HasValue;
+                stickBase.gameObject.SetActive(on); stickKnob.gameObject.SetActive(on);
+                if (on)
+                {
+                    float s = ((RectTransform)canvas.transform).rect.height / Screen.height;   // screen px -> canvas units
+                    stickBase.rectTransform.anchoredPosition = input.stickOrigin.Value * s;
+                    stickKnob.rectTransform.anchoredPosition = (input.stickOrigin.Value + input.stickOffset) * s;
+                }
+            }
             if (buttons.TryGetValue("whip", out var wb)) wb.color = new Color(1, 1, 1, 0.4f + c.stamina * 0.5f);
             foreach (var kv in buttons) kv.Value.rectTransform.localScale = Vector3.one * (input.held.Contains(kv.Key) ? 0.92f : 1);
 
