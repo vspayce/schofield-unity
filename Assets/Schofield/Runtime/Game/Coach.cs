@@ -128,7 +128,7 @@ namespace Schofield
             float pitch = Mathf.Atan2(front.y - back.y, 2.8f);
             float yaw = Mathf.Atan2(fr.tx, fr.tz);
             // (the web game's right is the mirror of ours: sample on its sides so the numbers match)
-            float hl = R.Height(fr.x - fr.rx * 0.8f, fr.z - fr.rz * 0.8f), hr = R.Height(fr.x + fr.rx * 0.8f, fr.z + fr.rz * 0.8f);
+            float hl = R.Surface(fr.x - fr.rx * 0.8f, fr.z - fr.rz * 0.8f), hr = R.Surface(fr.x + fr.rx * 0.8f, fr.z + fr.rz * 0.8f);
             float bank = Mathf.Atan2(hl - hr, 1.6f) * 0.6f;
             root.transform.position = pos;
             root.transform.rotation = MathX.YXZ(-pitch, yaw, bank);

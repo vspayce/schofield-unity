@@ -25,10 +25,12 @@ namespace Schofield
             root = new GameObject("Towns").transform; root.SetParent(parent, false);
             var rnd = new Rng(route.def.seed + 5);
             float L = route.len, hours = ClockHours(route.def.clock);
-            float courtSide = rnd.Next() < 0.5f ? -1 : 1;
-            Street(20, 110, rnd, 0.8f, false, (57, 75, courtSide));
+            // on a gorge ledge the river side is a drop: build on the other side only
+            float wet = route.def.gorge != null ? route.riverSide : 0;
+            float pick = rnd.Next() < 0.5f ? -1 : 1, courtSide = wet != 0 ? -wet : pick;
+            Street(20, 110, rnd, 0.8f, false, (57, 75, courtSide), wet);
             Court(66, courtSide, false, hours);
-            Street(L - 130, L - 10, rnd, 0.8f, false, (0, 0, 0));
+            Street(L - 130, L - 10, rnd, 0.8f, false, (0, 0, 0), wet);
             Court(L + 24, 0, true, hours + L / 12 / 3600);
             if (route.HasGhostTown) { var T = route.TownRange; Street(T.x, T.y, rnd, 1, true, (0, 0, 0)); }
         }
@@ -125,11 +127,12 @@ namespace Schofield
                 }
         }
 
-        void Street(float s0, float s1, Rng rnd, float fill, bool ghost, (float s0, float s1, float side) reserve)
+        void Street(float s0, float s1, Rng rnd, float fill, bool ghost, (float s0, float s1, float side) reserve, float wet = 0)
         {
             var placed = new Dictionary<float, List<(float s, string name)>> { { -1, new List<(float, string)>() }, { 1, new List<(float, string)>() } };
             foreach (float side in new[] { -1f, 1f })
             {
+                if (side == wet) continue;
                 float s = s0 + rnd.Next() * 6; string last = "";
                 while (s < s1)
                 {
@@ -149,6 +152,7 @@ namespace Schofield
                 }
             }
             float mid = (s0 + s1) / 2, ls = rnd.Next() < 0.5f ? -1 : 1;
+            if (wet != 0) ls = -wet;
             Place(ghost ? "Church" : "WaterTower", mid + 30, ls, rnd, ghost, 14);
             if (ghost) Place("Gallows", s0 + 40, -1, rnd, ghost, 2);
         }

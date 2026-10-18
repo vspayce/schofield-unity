@@ -35,7 +35,7 @@ namespace Schofield
             var rt = (RectTransform)go.transform;
             rt.SetParent(parent, false);
             rt.anchorMin = rt.anchorMax = anchor;
-            rt.pivot = pivot ?? anchor;
+            rt.pivot = pivot ?? new Vector2(0.5f, 0.5f);   // pos is the centre unless a pivot is given
             rt.anchoredPosition = pos; rt.sizeDelta = size;
             return rt;
         }

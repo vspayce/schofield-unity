@@ -57,7 +57,12 @@ namespace Schofield
             return UIKit.Safe(panel);
         }
 
-        void Select(Button b) { if (b) EventSystem.current?.SetSelectedGameObject(b.gameObject); }
+        // a touch-only phone has nothing to navigate with, so no button is left lit up
+        void Select(Button b)
+        {
+            bool touchOnly = Application.isMobilePlatform && Application.platform != RuntimePlatform.tvOS && UnityEngine.InputSystem.Gamepad.current == null;
+            if (b && !touchOnly) EventSystem.current?.SetSelectedGameObject(b.gameObject);
+        }
 
         /// Highlight the panel's first button (a controller needs something selected to move from).
         public void SelectFirst() { if (panel) Select(panel.GetComponentInChildren<Button>()); }
@@ -68,15 +73,37 @@ namespace Schofield
             var L = new Vector2(0, 0.5f);
             var logo = UIKit.Img("Logo", p, new Vector2(0, 1), new Vector2(260, -150), new Vector2(420, 210), Assets.Sprite("logo"));
             if (!Assets.Sprite("logo")) UIKit.Txt("Logo", p, new Vector2(0, 1), new Vector2(260, -150), new Vector2(460, 120), "SCHOFIELD", 72, UIKit.Paper, TextAnchor.MiddleCenter, true);
-            var def = Routes.All[0];
-            UIKit.Txt("Route", p, L, new Vector2(260, 40), new Vector2(460, 40), def.name, 32, UIKit.Paper, TextAnchor.MiddleCenter, true);
-            UIKit.Txt("Leg", p, L, new Vector2(260, 6), new Vector2(460, 26), $"{def.from} to {def.to}", 18, UIKit.Gold, TextAnchor.MiddleCenter, true);
-            UIKit.Txt("Blurb", p, L, new Vector2(260, -30), new Vector2(420, 50), def.blurb, 16, new Color(1, 1, 1, 0.8f));
-            int stars = Save.Stars(def.id);
-            UIKit.Txt("Stars", p, L, new Vector2(260, -66), new Vector2(300, 30), new string('★', stars) + new string('☆', 3 - stars), 26, UIKit.Gold);
-            var ride = UIKit.Btn("Ride", p, L, new Vector2(260, -130), new Vector2(300, 64), "RIDE", () => { Close(); g.StartRide(0); }, 34);
+            int total = 0; foreach (var r in Routes.All) total += Save.Stars(r.id);
+            UIKit.Txt("Tag", p, L, new Vector2(260, 30), new Vector2(460, 30), "Shotgun messenger, Wells & Co. Overland", 20, UIKit.Gold, TextAnchor.MiddleCenter, true);
+            UIKit.Txt("Stars", p, L, new Vector2(260, -10), new Vector2(400, 30), $"★ {total} of {Routes.All.Length * 3}", 22, UIKit.Paper, TextAnchor.MiddleCenter, true);
+            var ride = UIKit.Btn("Ride", p, L, new Vector2(260, -80), new Vector2(300, 64), "RIDE OUT", () => RouteSelect(), 34);
             UIKit.Txt("Purse", p, L, new Vector2(260, -190), new Vector2(300, 26), "Purse: $" + Save.Purse, 18, UIKit.Paper, TextAnchor.MiddleCenter, true);
             Select(ride);
+        }
+
+        /// every route is open from the start (as in the web game)
+        public void RouteSelect()
+        {
+            var p = NewPanel(true);
+            var C = new Vector2(0.5f, 0.5f);
+            UIKit.Txt("T", p, C, new Vector2(0, 262), new Vector2(800, 60), "Choose your route", 44, UIKit.Paper, TextAnchor.MiddleCenter, true);
+            Button first = null;
+            for (int i = 0; i < Routes.All.Length; i++)
+            {
+                var def = Routes.All[i]; int idx = i;
+                float y = 180 - i * 86;
+                var b = UIKit.Btn("Route " + def.id, p, C, new Vector2(0, y), new Vector2(780, 76), "", () => { Close(); g.StartRide(idx); });
+                var bt = b.transform;
+                var A = new Vector2(0.5f, 0.5f);
+                var n = UIKit.Txt("Name", bt, A, new Vector2(-130, 13), new Vector2(480, 34), def.name, 28, UIKit.Paper, TextAnchor.MiddleLeft, true);
+                var l = UIKit.Txt("Leg", bt, A, new Vector2(-130, -18), new Vector2(480, 24), $"{def.from} to {def.to}", 16, UIKit.Gold, TextAnchor.MiddleLeft, true);
+                int st = Save.Stars(def.id);
+                UIKit.Txt("Stars", bt, A, new Vector2(270, 13), new Vector2(200, 32), new string('★', st) + new string('☆', 3 - st), 26, UIKit.Gold);
+                UIKit.Txt("Reward", bt, A, new Vector2(270, -18), new Vector2(200, 24), "REWARD $" + def.reward, 15, UIKit.Paper, TextAnchor.MiddleCenter, true);
+                if (first == null) first = b;
+            }
+            UIKit.Btn("Back", p, C, new Vector2(0, -262), new Vector2(240, 54), "BACK", () => Title());
+            Select(first);
         }
 
         public void Pause()
@@ -106,8 +133,14 @@ namespace Schofield
             string body = $"Outlaws down   {r.kills}\nHeadshots   {r.headshots}\nAccuracy   {r.accuracy}%\nCoach   {r.coach}%\n\nBounty   ${r.bounty}\nMail contract   ${r.reward}\n<b>Total   ${r.total}</b>";
             var t = UIKit.Txt("Body", p, C, new Vector2(0, 0), new Vector2(500, 220), body, 22, UIKit.Paper, TextAnchor.MiddleCenter, true);
             t.supportRichText = true;
-            var again = UIKit.Btn("Again", p, C, new Vector2(-170, -170), new Vector2(300, 60), "RIDE AGAIN", () => { Close(); g.StartRide(g.routeIndex); });
-            UIKit.Btn("Title", p, C, new Vector2(170, -170), new Vector2(300, 60), "TITLE", () => { Close(); g.ToAttract(); Title(); });
+            bool next = g.routeIndex + 1 < Routes.All.Length;
+            var again = UIKit.Btn("Again", p, C, new Vector2(next ? -310 : -170, -170), new Vector2(290, 60), "RIDE AGAIN", () => { Close(); g.StartRide(g.routeIndex); });
+            UIKit.Btn("Routes", p, C, new Vector2(next ? 0 : 170, -170), new Vector2(290, 60), "ROUTES", () => { Close(); g.ToAttract(); RouteSelect(); });
+            if (next)
+            {
+                var nb = UIKit.Btn("Next", p, C, new Vector2(310, -170), new Vector2(290, 60), "NEXT ROUTE", () => { Close(); g.StartRide(g.routeIndex + 1); });
+                Select(nb); return;
+            }
             Select(again);
         }
 
@@ -119,7 +152,7 @@ namespace Schofield
             UIKit.Txt("Why", p, C, new Vector2(0, 80), new Vector2(800, 40), reason, 26, UIKit.Paper, TextAnchor.MiddleCenter, true);
             UIKit.Txt("Kept", p, C, new Vector2(0, 30), new Vector2(800, 30), kept > 0 ? $"You keep the ${kept} in bounties." : "", 20, UIKit.Gold, TextAnchor.MiddleCenter, true);
             var again = UIKit.Btn("Again", p, C, new Vector2(-170, -60), new Vector2(300, 60), "RIDE AGAIN", () => { Close(); g.StartRide(g.routeIndex); });
-            UIKit.Btn("Title", p, C, new Vector2(170, -60), new Vector2(300, 60), "TITLE", () => { Close(); g.ToAttract(); Title(); });
+            UIKit.Btn("Routes", p, C, new Vector2(170, -60), new Vector2(300, 60), "ROUTES", () => { Close(); g.ToAttract(); RouteSelect(); });
             Select(again);
         }
     }

@@ -30,6 +30,12 @@ namespace Schofield
         float[] fd, fs;
         float townS0 = -1, townS1 = -1;
 
+        // Thunder Gorge
+        public readonly float riverSide = 1, gorgeDepth = 26;
+        public readonly bool hasBridge, hasFalls;
+        public readonly float bridgeS0, bridgeS1, bridgeWidth, bridgeCutHalf, bridgeDepth;
+        public readonly float fallsS, fallsDrop, fallsWidth;
+
         public Route(RouteDef def)
         {
             this.def = def; biome = def.biome; len = def.length;
@@ -37,6 +43,18 @@ namespace Schofield
             noise2 = new Simplex2D(def.seed * 7 + 3);
             rand = new Rng(def.seed);
             if (def.ghostTownStart >= 0) { townS0 = def.ghostTownStart * len; townS1 = townS0 + def.ghostTownLength; }
+            if (biome == "gorge" && def.gorge != null)
+            {
+                var gd = def.gorge;
+                riverSide = gd.side; gorgeDepth = gd.depth;
+                if (gd.fallsAt >= 0) { hasFalls = true; fallsS = len * gd.fallsAt; fallsDrop = gd.fallsDrop; fallsWidth = gd.fallsWidth; }
+                if (gd.bridgeAt >= 0)
+                {
+                    hasBridge = true;
+                    bridgeS0 = len * gd.bridgeAt - gd.bridgeLength * 0.5f; bridgeS1 = len * gd.bridgeAt + gd.bridgeLength * 0.5f;
+                    bridgeWidth = gd.bridgeWidth; bridgeCutHalf = gd.bridgeCutHalf; bridgeDepth = gd.bridgeDepth;
+                }
+            }
             BuildPath();
             BuildRoadHeights();
             BuildField();
@@ -142,6 +160,14 @@ namespace Schofield
                     float mesa = MathX.Smoothstep(0.35f, 0.42f, n2.Fbm(x / 520 + 3, z / 520 - 9, 3)) * 55;
                     mesa = Mathf.Floor(mesa / 11) * 11 + (mesa % 11) * 0.15f;
                     return big + mid + mesa;
+                }
+                case "gorge":
+                {
+                    // high forested shoulders falling into a cut river valley
+                    float big = n.Fbm(x / 520, z / 520, 4) * 70;
+                    float ridge = n2.Ridged(x / 300 + 5, z / 300, 4) * 48;
+                    float mid = n2.Fbm(x / 120, z / 120, 3) * 9;
+                    return big + ridge + mid + 20;
                 }
                 case "canyon":
                 {
@@ -262,6 +288,7 @@ namespace Schofield
             if (s > len - 150) townFlat = Mathf.Max(townFlat, MathX.Smoothstep(len - 150, len - 90, s));
             if (townS0 >= 0 && s > townS0 - 60 && s < townS1 + 60)
                 townFlat = Mathf.Max(townFlat, MathX.Smoothstep(townS0 - 60, townS0, s) * (1 - MathX.Smoothstep(townS1, townS1 + 60, s)));
+            if (biome == "gorge") return GorgeHeight(x, z, d, s, rh, crown, nat);
             if (biome == "canyon")
             {
                 float floorW = 16 + 6 * noise.Noise(s / 120, 1.7f);
@@ -275,6 +302,60 @@ namespace Schofield
             float inner = RoadHalf + 2 + townFlat * 40;
             float w = MathX.Smoothstep(inner, inner + blendW + townFlat * 30, ad + noise.Noise(x / 40, z / 40) * 3);
             return Mathf.Lerp(rh + crown, nat, w);
+        }
+
+        // A shelf blasted into the valley side: road level out to the shoulder, then the ground drops away hard
+        // on the river side and climbs on the other. Buttresses, gullies and bedding planes break up the faces.
+        float GorgeHeight(float x, float z, float d, float s, float rh, float crown, float nat)
+        {
+            float sideD = d * riverSide;               // > 0 = the river side
+            float shelf = RoadHalf + 3.4f;
+            float butt = noise.Fbm(x / 58 + 4, z / 58, 3) * 9;
+            float gully = Mathf.Pow(Mathf.Abs(noise.Noise(x / 21 + 9, z / 21)), 0.7f) * 7;
+            float fine = noise2.Fbm(x / 9, z / 9, 3) * 2.2f;
+            float grain = butt + gully + fine;
+            float y;
+            if (sideD > 0)
+            {
+                float t = MathX.Smoothstep(shelf, shelf + 26, sideD + grain * 0.5f);
+                float bed = RiverBedAt(s) - 1.2f + noise.Fbm(x / 30, z / 30, 2) * 1.4f;
+                y = Mathf.Lerp(rh + crown, bed, t * t * (3 - 2 * t));
+                if (t > 0.05f && t < 0.97f)
+                {
+                    const float step = 3.2f;
+                    float q = Mathf.Floor(y / step) * step + (y % step) * 0.34f;
+                    y = Mathf.Lerp(y, q, 0.55f);
+                }
+            }
+            else
+            {
+                float t = MathX.Smoothstep(shelf, shelf + 34, -sideD + grain * 0.7f);
+                y = Mathf.Lerp(rh + crown, Mathf.Max(nat, rh + 12) + grain * 0.8f, t * t * (3 - 2 * t));
+            }
+            if (hasBridge && s >= bridgeS0 && s <= bridgeS1)
+            {
+                float along = MathX.Smoothstep(0, 18, s - bridgeS0) * MathX.Smoothstep(0, 18, bridgeS1 - s);
+                float across = 1 - MathX.Smoothstep(bridgeWidth * 0.5f + 1, bridgeCutHalf, Mathf.Abs(d));
+                float floor = RoadHeightAt(s) - bridgeDepth + noise2.Fbm(x / 18, z / 18, 2) * 0.9f;
+                y = Mathf.Lerp(y, floor, along * across);
+            }
+            return y;
+        }
+
+        /// bed height under the river at station s: a steady fall down the valley, the road ledge above it
+        public float RiverBedAt(float s) => RoadHeightAt(s) - gorgeDepth;
+
+        public bool OnBridge(float s) => hasBridge && s >= bridgeS0 && s <= bridgeS1;
+
+        /// what a wheel or a hoof stands on: the trestle deck where there is one, else the ground
+        public float Surface(float x, float z)
+        {
+            if (hasBridge)
+            {
+                RoadCoords(x, z, out float d, out float s);
+                if (s >= bridgeS0 && s <= bridgeS1 && Mathf.Abs(d) <= bridgeWidth * 0.5f) return RoadHeightAt(s);
+            }
+            return Height(x, z);
         }
 
         // ----------------------------------------------------------- road frames
@@ -300,7 +381,8 @@ namespace Schofield
         {
             var f = Frame(s);
             float x = f.x + f.rx * d, z = f.z + f.rz * d;
-            return new Vector3(x, Height(x, z), z);
+            float y = OnBridge(s) && Mathf.Abs(d) <= bridgeWidth * 0.5f ? RoadHeightAt(s) : Height(x, z);
+            return new Vector3(x, y, z);
         }
 
         public bool InTown(float s) => townS0 >= 0 && s > townS0 && s < townS1;

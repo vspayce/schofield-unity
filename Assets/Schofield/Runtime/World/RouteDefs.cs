@@ -39,6 +39,17 @@ namespace Schofield
         public WaveDef(float at, string type, int count, string from = "behind") { this.at = at; this.type = type; this.count = count; this.from = from; }
     }
 
+    public class ArchDef { public float at, span = 92, baseH, rise; public ArchDef(float at, float span, float baseH, float rise) { this.at = at; this.span = span; this.baseH = baseH; this.rise = rise; } }
+
+    /// Thunder Gorge: which hand the river is on, the ledge height over the water, the timber trestle across a
+    /// side cut, and the falls the road runs under
+    public class GorgeDef
+    {
+        public float side = 1, depth = 26;
+        public float bridgeAt = -1, bridgeLength = 300, bridgeWidth = 8.4f, bridgeCutHalf = 46, bridgeDepth = 76;
+        public float fallsAt = -1, fallsDrop = 34, fallsWidth = 24;
+    }
+
     public class RouteDef
     {
         public string id, name, from, to, blurb, biome, clock;
@@ -46,7 +57,8 @@ namespace Schofield
         public LightDef light; public TerrainDef terrain; public ScatterRule[] scatter; public GrassDef grass;
         public WaveDef[] waves;
         public float ghostTownStart = -1, ghostTownLength;
-        public bool playable;
+        public ArchDef[] arches;
+        public GorgeDef gorge;
     }
 
     public static class Routes
@@ -61,7 +73,7 @@ namespace Schofield
             {
                 id = "plains", clock = "5:40", name = "Dry Creek Plains", from = "Mercy Springs", to = "Dry Creek",
                 blurb = "Open grassland at golden hour. Riders will try to run you down.",
-                seed = 1871, length = 2600, biome = "plains", reward = 400, wind = 0.9f, winding = 0.35f, playable = true,
+                seed = 1871, length = 2600, biome = "plains", reward = 400, wind = 0.9f, winding = 0.35f,
                 light = new LightDef
                 {
                     sunElev = 13, sunAzim = 230, sunColor = C("#ffc98a"), sunIntensity = 4.2f,
@@ -140,9 +152,45 @@ namespace Schofield
             },
             new RouteDef
             {
+                id = "perdition", clock = "7:25", name = "Perdition", from = "Silver Notch", to = "Red Mesa",
+                blurb = "Straight through a ghost town at dusk. Gunmen in every window.",
+                seed = 1877, length = 2400, biome = "desert", reward = 900, wind = 1.0f, winding = 0.25f,
+                ghostTownStart = 0.38f, ghostTownLength = 420,
+                light = new LightDef
+                {
+                    sunElev = 5, sunAzim = 260, sunColor = C("#ff9a55"), sunIntensity = 3.0f,
+                    hemiSky = C("#7d7fa8"), hemiGround = C("#6a4630"), hemiIntensity = 1.0f, tintShadow = new Vector3(0.8f, 0.9f, 1.12f),
+                    zenith = C("#2e3f6e"), horizon = C("#f08a55"), sunGlow = C("#ff7a3a"), ground = C("#6a4a32"),
+                    fog = C("#c98a66"), fogDensity = 0.0021f, exposure = 1.1f, clouds = 0.55f,
+                    gradeSat = 1.12f, gradeContrast = 1.1f, gradeGain = new Vector3(1.06f, 0.97f, 0.9f), gradeLift = new Vector3(0.02f, 0.006f, 0.012f),
+                },
+                terrain = new TerrainDef
+                {
+                    ground1 = "sand", ground2 = "dry_grass", road = "dirt_road", rock = "red_rock", snow = null,
+                    tint1 = C("#f0d8b8"), tint2 = C("#c8a070"), rockTint = C("#e0b090"), roadTint = C("#f0c8a0"), propRock = C("#e8b090"),
+                    snowLine = 9999, blend = 30,
+                },
+                scatter = new[]
+                {
+                    S("Saguaro", 1.4f, 8, 0.8f, 1.4f, 0, true), S("Joshua", 0.8f, 8, 0.8f, 1.3f, 0, true),
+                    S("Sagebrush", 12, 6, 0.6f, 1.2f), S("Rock_B", 1.5f, 7, 0.6f, 1.8f),
+                    S("Boulder_Big", 0.4f, 20, 0.8f, 1.8f, 0, true), S("Tumbleweed", 0.4f, 3, 0.8f, 1.2f),
+                    S("CowSkull", 0.15f, 4, 1, 1), S("GraveCross", 0.08f, 6, 1, 1),
+                    new ScatterRule("TelegraphPole", 0) { poles = true },
+                },
+                grass = new GrassDef { density = 0.35f, color = C("#b09060"), height = 0.4f },
+                waves = new[]
+                {
+                    new WaveDef(0.1f, "riders", 3, "behind"), new WaveDef(0.24f, "ridge", 2), new WaveDef(0.38f, "town", 10),
+                    new WaveDef(0.44f, "riders", 3, "ahead"), new WaveDef(0.66f, "riders", 4, "behind"), new WaveDef(0.8f, "ridge", 3),
+                },
+            },
+            new RouteDef
+            {
                 id = "gulch", clock = "5:55", name = "Devil's Gulch", from = "Red Mesa", to = "Fort Providence",
                 blurb = "A red canyon at sundown. Every gun in the territory wants your strongbox.",
                 seed = 1879, length = 3000, biome = "canyon", reward = 1400, wind = 1.1f, winding = 0.6f,
+                arches = new[] { new ArchDef(0.24f, 96, 30, 25), new ArchDef(0.57f, 88, 33, 27), new ArchDef(0.82f, 102, 29, 26) },
                 light = new LightDef
                 {
                     sunElev = 16, sunAzim = 200, sunColor = C("#ffb070"), sunIntensity = 4.2f,
@@ -169,6 +217,42 @@ namespace Schofield
                     new WaveDef(0.06f, "riders", 3, "behind"), new WaveDef(0.16f, "ridge", 3), new WaveDef(0.26f, "riders", 4, "flank"),
                     new WaveDef(0.38f, "ridge", 4), new WaveDef(0.48f, "riders", 5, "behind"), new WaveDef(0.6f, "ridge", 4),
                     new WaveDef(0.7f, "riders", 4, "ahead"), new WaveDef(0.8f, "riders", 6, "behind"), new WaveDef(0.86f, "ridge", 4),
+                },
+            },
+            new RouteDef
+            {
+                id = "gorge", clock = "8:15", name = "Thunder Gorge", from = "Fort Providence", to = "Cascade",
+                blurb = "Cross a high timber trestle over the gorge before the road runs beneath the falls.",
+                seed = 1883, length = 2700, biome = "gorge", reward = 1800, wind = 1.1f, winding = 0.75f,
+                gorge = new GorgeDef { side = 1, depth = 27, bridgeAt = 0.22f, bridgeLength = 300, bridgeWidth = 8.4f, bridgeCutHalf = 46, bridgeDepth = 76, fallsAt = 0.54f, fallsDrop = 34, fallsWidth = 24 },
+                light = new LightDef
+                {
+                    sunElev = 19, sunAzim = 118, sunColor = C("#ffe6c4"), sunIntensity = 3.4f,
+                    hemiSky = C("#93b4d6"), hemiGround = C("#3f4a3a"), hemiIntensity = 0.95f, env = 0.4f, tintShadow = new Vector3(0.78f, 0.9f, 1.15f),
+                    zenith = C("#3d6b9c"), horizon = C("#c9d7dc"), sunGlow = C("#ffd9a6"), ground = C("#4e5648"),
+                    fog = C("#a9bcc4"), fogDensity = 0.0021f, exposure = 1.0f, clouds = 0.6f,
+                    gradeSat = 1.1f, gradeContrast = 1.12f, gradeGain = new Vector3(0.98f, 1.02f, 1.04f), gradeLift = new Vector3(0.006f, 0.01f, 0.014f),
+                },
+                terrain = new TerrainDef
+                {
+                    ground1 = "green_grass", ground2 = "dry_grass", road = "gravel", rock = "rock", snow = null,
+                    tint1 = C("#d8e8c8"), tint2 = C("#fff2d0"), rockTint = C("#b8bcb4"), roadTint = C("#f0ece4"), propRock = C("#c4c8c0"),
+                    snowLine = 9999, blend = 20, rockSlope = 0.16f, greenMix = new Vector2(0.25f, 0.55f),
+                },
+                scatter = new[]
+                {
+                    S("Pine_A", 5.5f, 9, 0.9f, 1.6f, 0.5f), S("Pine_B", 4.2f, 9, 0.9f, 1.5f, 0.5f),
+                    S("Rock_A", 3.0f, 7, 0.6f, 1.9f), S("Rock_C", 2.2f, 7, 0.6f, 1.7f), S("Boulder_Big", 0.8f, 12, 0.9f, 1.8f),
+                    S("DeadTree", 0.4f, 10, 0.9f, 1.3f), S("Sagebrush", 6, 6, 0.7f, 1.2f, 0.2f),
+                    new ScatterRule("Fence_Rail", 0) { fence = true },
+                    new ScatterRule("TelegraphPole", 0) { poles = true },
+                },
+                grass = new GrassDef { density = 2.6f, color = C("#8fa864"), height = 0.36f },
+                waves = new[]
+                {
+                    new WaveDef(0.1f, "riders", 3, "behind"), new WaveDef(0.22f, "ridge", 3), new WaveDef(0.33f, "riders", 4, "flank"),
+                    new WaveDef(0.44f, "riders", 4, "behind"), new WaveDef(0.62f, "ridge", 3), new WaveDef(0.72f, "riders", 5, "ahead"),
+                    new WaveDef(0.85f, "riders", 5, "behind"),
                 },
             },
         };

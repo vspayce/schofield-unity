@@ -14,6 +14,7 @@ namespace Schofield
         public GameInput input;
         public Hud hud; public Menus menus; public Post post;
         public Route route; public Terrain terrain; public Scatter scatter; public Sky sky; public Towns towns;
+        public GorgeBridge bridge; public RockArches arches; public Water water;
         public Coach coach; public Player player; public Enemies enemies; public Combat combat; public FX fx;
         public Routes.Diff diff;
         public int routeIndex;
@@ -68,6 +69,7 @@ namespace Schofield
             if (route == null) return;
             player?.Dispose(); player = null;
             enemies?.Dispose(); coach?.Dispose(); fx?.Dispose(); scatter?.Dispose(); towns?.Dispose(); terrain?.Dispose(); sky?.Dispose();
+            bridge?.Dispose(); bridge = null; arches?.Dispose(); arches = null; water?.Dispose(); water = null;
             if (attractGuard != null) { attractGuard.anim.Dispose(); attractGuard = null; }
             if (world) Destroy(world.gameObject);
             route = null;
@@ -143,6 +145,11 @@ namespace Schofield
             terrain.onTile = scatter.OnTile;
             terrain.work = scatter.Compute;
             towns = new Towns(route, world);
+            bridge = route.hasBridge ? new GorgeBridge(route, world) : null;
+            arches = def.arches != null ? new RockArches(route, world, def.arches) : null;
+            // the gorge river and the falls the road runs under; punching through the curtain rocks the coach
+            water = def.gorge != null ? new Water(route, world) : null;
+            if (water != null) water.onBurst = k => shake += 0.4f * k;
             coach = new Coach(route, world);
             fx = new FX(route, world);
             combat = new Combat(this);
@@ -302,7 +309,10 @@ namespace Schofield
             {
                 var es = UnityEngine.EventSystems.EventSystem.current;
                 var sel = es.currentSelectedGameObject;
-                if (sel == null || !sel.activeInHierarchy) menus.SelectFirst();
+                // only a controller or keyboard needs a highlighted button; on a phone, re-selecting after every tap
+                // flashed the first button on and off
+                bool navigates = UnityEngine.InputSystem.Gamepad.current != null || !input.touch;
+                if ((sel == null || !sel.activeInHierarchy) && navigates) menus.SelectFirst();
                 else if (GameInput.Confirm() && sel.TryGetComponent<UnityEngine.UI.Button>(out var btn) && btn.interactable) btn.onClick.Invoke();
             }
             if (route == null) return;
@@ -344,6 +354,7 @@ namespace Schofield
             scatter.Update(cam, coach.pos);
             sky.Update(cam);
             fx.Update(paused ? 0 : Time.deltaTime, cam);
+            water?.Update(paused ? 0 : rdt, cam, coach.pos);
             post.Update(rdt);
         }
 

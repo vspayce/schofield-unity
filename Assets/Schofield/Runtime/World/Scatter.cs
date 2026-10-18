@@ -94,9 +94,10 @@ namespace Schofield
             if (poles)
                 for (float s = 30; s < r.len; s += 42)
                 {
-                    if (r.InTown(s)) continue;
+                    if (r.InTown(s) || r.OnBridge(s - 12) || r.OnBridge(s + 12) || (r.hasFalls && Mathf.Abs(s - r.fallsS) < 30)) continue;
                     var f = r.Frame(s);
-                    Push("TelegraphPole", f.x + f.rx * 9.5f, f.z + f.rz * 9.5f, Mathf.Atan2(f.tx, f.tz) + Mathf.PI / 2 + (rnd.Next() - 0.5f) * 0.1f);
+                    float ps = r.def.gorge != null ? -r.riverSide : 1;     // on the ledge, the wall side
+                    Push("TelegraphPole", f.x + f.rx * 9.5f * ps, f.z + f.rz * 9.5f * ps, Mathf.Atan2(f.tx, f.tz) + Mathf.PI / 2 + (rnd.Next() - 0.5f) * 0.1f);
                 }
             if (fence)
             {
@@ -104,9 +105,10 @@ namespace Schofield
                 while (s < r.len - 60)
                 {
                     float run = 60 + rnd.Next() * 140; float side = rnd.Next() < 0.5f ? -1 : 1; float off = 8 + rnd.Next() * 5;
+                    if (r.def.gorge != null) { side = -r.riverSide; off = 7.4f; }
                     for (float t = s; t < Mathf.Min(r.len - 60, s + run); t += 3)
                     {
-                        if (r.InTown(t) || t < 130 || t > r.len - 150) continue;
+                        if (r.InTown(t) || t < 130 || t > r.len - 150 || r.OnBridge(t - 6) || r.OnBridge(t + 6)) continue;
                         var f = r.Frame(t + 1.5f);
                         Push("Fence_Rail", f.x + f.rx * off * side, f.z + f.rz * off * side, Mathf.Atan2(f.tx, f.tz) + Mathf.PI / 2 + (rnd.Next() - 0.5f) * 0.08f);
                     }
@@ -153,6 +155,7 @@ namespace Schofield
                     bool inTown = r.InTown(s) || (r.HasGhostTown && s > town.x - 30 && s < town.y + 30) || s < 130 || s > r.len - 150;
                     if (s >= 0 && inTown && Mathf.Abs(d) < (rule.far ? 32 : 40)) continue;
                     float h = r.Height(x, z);
+                    if (r.def.gorge != null && s >= 0 && (h < r.RiverBedAt(s) + 3.6f || (r.OnBridge(s) && Mathf.Abs(d) < r.bridgeCutHalf))) continue;   // not in the river or the trestle's cut
                     if (!float.IsNaN(rule.minH) && h < rule.minH) continue;
                     if (!float.IsNaN(rule.maxH) && h > rule.maxH) continue;
                     float hx = r.Height(x + 1.5f, z) - h, hz = r.Height(x, z + 1.5f) - h;
@@ -276,6 +279,7 @@ namespace Schofield
                 float hx = r.Height(x + 1, z) - h, hz = r.Height(x, z + 1) - h;
                 if (Mathf.Sqrt(hx * hx + hz * hz) > 0.5f) continue;
                 if (h > r.def.terrain.snowLine - 5) continue;
+                if (r.def.gorge != null && s >= 0 && h < r.RiverBedAt(s) + 3.2f) continue;
                 arr.Add(new Vector4(x, h, z, (0.6f + rnd.Next() * 0.8f) * G.height * 1.6f));
             }
             return arr;

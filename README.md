@@ -1,7 +1,7 @@
 # Schofield — Unity
 
 The native port of [Schofield](https://github.com/vspayce/Schofield), the stagecoach shooter, for
-iPhone/iPad, Apple TV and the Mac. Phase 1 is **Dry Creek Plains**, playable end to end: the coach and
+iPhone/iPad, Apple TV and the Mac. All five routes are playable: **Dry Creek Plains**, **Widow's Pass**, **Perdition** (the ghost town and its window gunmen), **Devil's Gulch** (stone arches) and **Thunder Gorge** (the trestle, the river and the falls the coach drives through), picked from the title screen. Each has the coach and
 its six-horse team on the winding road, the Schofield and the messenger shotgun, scope, Dead Eye,
 riders and ridge riflemen, the HUD, and touch, mouse/keyboard and controller input.
 
@@ -35,5 +35,5 @@ riders and ridge riflemen, the HUD, and touch, mouse/keyboard and controller inp
 - `Runtime/UI` — HUD and menus built in code (uGUI). `Runtime/Core` — input, sound, post, assets.
 - The world uses the web game's numbers unchanged, so it is a mirror image of the browser version.
 
-Next phases: the other routes, the railroad and train, wildlife and the buffalo herd, townsfolk, the
+Next phases: the railroad and train, wildlife and the buffalo herd, townsfolk, the
 gunsmith, missions and hired guns, dynamite.

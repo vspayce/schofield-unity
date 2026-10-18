@@ -87,25 +87,29 @@ namespace Schofield
                 f.rectTransform.pivot = new Vector2(0, 0.5f);
                 return f;
             }
-            hpFill = Meter("Health", "health_heart", -40, MathX.Hex("#c8402c"), out hpIcon);
-            coachFill = Meter("Coach", "coach_icon", -78, MathX.Hex("#c9a04a"), out _);
-            coachPct = UIKit.Txt("Pct", safe, new Vector2(0, 1), new Vector2(250, -78), new Vector2(60, 24), "100%", 16, UIKit.Paper, TextAnchor.MiddleLeft, true);
-            deFill = Meter("DeadEye", "deadeye_icon", -116, MathX.Hex("#e8c26a"), out _);
+            float my = input.touch ? -120 : -40;      // on a phone the pause button sits top left, so the meters go under it
+            hpFill = Meter("Health", "health_heart", my, MathX.Hex("#c8402c"), out hpIcon);
+            coachFill = Meter("Coach", "coach_icon", my - 38, MathX.Hex("#c9a04a"), out _);
+            coachPct = UIKit.Txt("Pct", safe, new Vector2(0, 1), new Vector2(250, my - 38), new Vector2(60, 24), "100%", 16, UIKit.Paper, TextAnchor.MiddleLeft, true);
+            deFill = Meter("DeadEye", "deadeye_icon", my - 76, MathX.Hex("#e8c26a"), out _);
 
-            // ammo, bottom right
-            var br = new Vector2(1, 0);
-            ammoName = UIKit.Txt("AmmoName", safe, br, new Vector2(-130, 30), new Vector2(240, 24), "", 16, UIKit.Paper, TextAnchor.MiddleCenter, true);
-            cylRt = UIKit.Rect("Cylinder", safe, br, new Vector2(-130, 100), new Vector2(96, 96));
+            // ammo, top right under the bounty (where the web game has it, clear of the touch buttons)
+            var br = new Vector2(1, 1);
+            ammoName = UIKit.Txt("AmmoName", safe, br, new Vector2(-90, -186), new Vector2(240, 24), "", 16, UIKit.Paper, TextAnchor.MiddleRight, true);
+            ammoName.rectTransform.pivot = new Vector2(1, 0.5f); ammoName.rectTransform.anchoredPosition = new Vector2(-40, -186);
+            cylRt = UIKit.Rect("Cylinder", safe, br, new Vector2(-90, -120), new Vector2(96, 96));
             UIKit.Img("CylArt", cylRt, new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(96, 96), Assets.Sprite("revolver_cylinder"));
             for (int i = 0; i < 6; i++)
             {
                 float a = i / 6f * Mathf.PI * 2 + Mathf.PI / 2;
                 chambers.Add(UIKit.Img("ch", cylRt, new Vector2(0.5f, 0.5f), new Vector2(Mathf.Cos(a) * 28, Mathf.Sin(a) * 28), new Vector2(20, 20), UIKit.Disc, MathX.Hex("#d9b25a")));
             }
-            shellsRt = UIKit.Rect("Shells", safe, br, new Vector2(-130, 90), new Vector2(200, 60));
-            ammoCount = UIKit.Txt("Count", safe, br, new Vector2(-130, 90), new Vector2(200, 60), "", 42, UIKit.Paper, TextAnchor.MiddleCenter, true);
+            shellsRt = UIKit.Rect("Shells", safe, br, new Vector2(-110, -120), new Vector2(200, 60));
+            ammoCount = UIKit.Txt("Count", safe, br, new Vector2(-40, -120), new Vector2(200, 60), "", 42, UIKit.Paper, TextAnchor.MiddleRight, true);
+            ammoCount.rectTransform.pivot = new Vector2(1, 0.5f);
 
-            feedRt = UIKit.Rect("Feed", safe, new Vector2(1, 0.5f), new Vector2(-30, 80), new Vector2(360, 200), new Vector2(1, 0.5f));
+            // kill feed just under the crosshair, centred (as in the web game)
+            feedRt = UIKit.Rect("Feed", layer, new Vector2(0.5f, 0.42f), Vector2.zero, new Vector2(500, 200));
             banner = UIKit.Txt("Banner", layer, new Vector2(0.5f, 0.7f), Vector2.zero, new Vector2(1000, 60), "", 46, UIKit.Paper, TextAnchor.MiddleCenter, true);
             bannerSub = UIKit.Txt("Sub", banner.transform, new Vector2(0.5f, 0.5f), new Vector2(0, -42), new Vector2(1000, 30), "", 20, UIKit.Gold, TextAnchor.MiddleCenter, true);
 
@@ -126,15 +130,18 @@ namespace Schofield
                 buttons[role] = im;
                 return im;
             }
-            B("fire", "btn_fire", "FIRE", new Vector2(1, 0), new Vector2(-130, 150), 150);
-            B("reload", "btn_reload", "RELOAD", new Vector2(1, 0), new Vector2(-270, 70), 86);
-            B("swap", "btn_swap", "SWAP", new Vector2(1, 0), new Vector2(-50, 290), 86);
-            B("deadeye", "btn_deadeye", "DEAD EYE", new Vector2(1, 0), new Vector2(-260, 220), 86);
-            B("scope", null, "SCOPE", new Vector2(1, 0), new Vector2(-170, 330), 76);
-            B("whip", "btn_whip", "WHIP", new Vector2(0, 0), new Vector2(80, 200), 96);
-            B("brake", "btn_brake", "REIN", new Vector2(0, 0), new Vector2(80, 80), 96);
-            var pause = UIKit.Img("btn pause", safe, new Vector2(0, 1), new Vector2(300, -28), new Vector2(54, 40), null, new Color(0.16f, 0.1f, 0.06f, 0.75f));
-            UIKit.Txt("l", pause.transform, new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(54, 40), "II", 22, UIKit.Paper, TextAnchor.MiddleCenter, true);
+            // the web game's touch layout (style.css), centres in canvas units (1 css px ≈ 1.85 on a phone):
+            // shooting on the right thumb, Dead Eye / scope and the team on the left
+            var R = new Vector2(1, 0); var L = new Vector2(0, 0);
+            B("fire", "btn_fire", "FIRE", R, new Vector2(-152, 155), 170);
+            B("reload", "btn_reload", "RELOAD", R, new Vector2(-322, 104), 100);
+            B("swap", "btn_swap", "SWAP", R, new Vector2(-137, 344), 96);
+            B("deadeye", "btn_deadeye", "DEAD EYE", L, new Vector2(120, 287), 130);
+            B("scope", null, "SCOPE", L, new Vector2(268, 287), 96);
+            B("whip", "btn_whip", "WHIP", L, new Vector2(266, 111), 96);
+            B("brake", "btn_brake", "REIN", L, new Vector2(118, 104), 96);
+            var pause = UIKit.Img("btn pause", safe, new Vector2(0, 1), new Vector2(60, -52), new Vector2(76, 76), UIKit.Disc, new Color(0, 0, 0, 0.45f));
+            UIKit.Txt("l", pause.transform, new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(76, 76), "II", 26, UIKit.Paper, TextAnchor.MiddleCenter, true);
             input.buttons["pause"] = pause.rectTransform;
         }
 
@@ -185,8 +192,7 @@ namespace Schofield
         public void Feed(string text, bool hs)
         {
             foreach (var f in feed) f.t.rectTransform.anchoredPosition += new Vector2(0, 30);
-            var t = UIKit.Txt("feed", feedRt, new Vector2(1, 0.5f), Vector2.zero, new Vector2(360, 28), text, hs ? 24 : 20, hs ? MathX.Hex("#ffd36a") : UIKit.Paper, TextAnchor.MiddleRight, true);
-            t.rectTransform.pivot = new Vector2(1, 0.5f);
+            var t = UIKit.Txt("feed", feedRt, new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(500, 28), text, hs ? 24 : 20, hs ? MathX.Hex("#ffd36a") : UIKit.Paper, TextAnchor.MiddleCenter, true);
             feed.Add((t, Time.unscaledTime + 1.4f));
             while (feed.Count > 4) { Object.Destroy(feed[0].t.gameObject); feed.RemoveAt(0); }
         }

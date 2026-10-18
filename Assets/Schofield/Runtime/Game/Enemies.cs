@@ -52,7 +52,7 @@ namespace Schofield
             gun = Characters.CreateWeapon("Schofield");
             Characters.Hold(gun, man.hand);
             side = sideIn != 0 ? sideIn : (Random.value < 0.5f ? -1 : 1);
-            bool narrow = R.biome == "mountain";
+            bool narrow = R.biome == "mountain" || R.biome == "gorge";
             maxD = narrow ? Route.RoadHalf + 0.5f : 14;
             switch (from)
             {
@@ -83,7 +83,7 @@ namespace Schofield
                     if (reposT < 0)
                     {
                         reposT = 5 + Random.value * 6;
-                        bool narrow = R.biome == "mountain";
+                        bool narrow = R.biome == "mountain" || R.biome == "gorge";
                         if (!narrow) { targetDs = -12 + Random.value * 18; targetD = side * (5 + Random.value * 4); }
                         if (!narrow && Random.value < 0.2f) { side *= -1; targetD *= -1; }
                     }
@@ -95,8 +95,9 @@ namespace Schofield
                 const float maxLat = 3.2f;
                 d += Mathf.Clamp(targetD - d, -maxLat * dt, maxLat * dt);
                 if (state == "ride") d = Mathf.Clamp(d, -maxD, maxD);
+                if (R.OnBridge(s) || R.OnBridge(s + 25)) d = Mathf.Clamp(d, -3.4f, 3.4f);   // single file over the trestle
                 float ds = s - coach.s;
-                float clear = R.biome == "mountain" ? 2.6f : 3.2f;
+                float clear = R.biome == "mountain" || R.biome == "gorge" ? 2.6f : 3.2f;
                 if (ds > -4 && ds < coach.teamFront + 1.5f && Mathf.Abs(d) < clear) d = Mathf.Sign(d != 0 ? d : side) * clear;
                 if (ds > -14 && ds < -4 && Mathf.Abs(d) < clear && Mathf.Abs(targetD) >= clear) d += Mathf.Sign(targetD) * 2 * dt;
                 s += speed * dt;
@@ -116,6 +117,7 @@ namespace Schofield
             {
                 speed = MathX.Damp(speed, 5, 0.4f, dt);
                 d += side * 3 * dt; s += speed * dt;
+                if (R.OnBridge(s)) d = Mathf.Clamp(d, -3.4f, 3.4f);
                 pos = R.WorldAt(s, d);
                 horse.root.transform.position = pos;
                 var f = R.Frame(s);
@@ -257,11 +259,13 @@ namespace Schofield
     public class Gunman : Enemy
     {
         readonly Gun gun; readonly bool rifle; readonly Transform root; readonly string variant;
-        float yaw, losT;
+        float yaw, losT, pop = 1; readonly bool popup; readonly Vector3 basePos;
         public override bool Rifle => rifle;
 
-        public Gunman(Game game, Vector3 p, Vector3 face, bool rifle = true, string variant = null, string gunName = null) : base(game)
+        public Gunman(Game game, Vector3 p, Vector3 face, bool rifle = true, string variant = null, string gunName = null, bool popup = false) : base(game)
         {
+            this.popup = popup; basePos = p;
+            if (popup) { pop = 0; p += Vector3.down * 1.2f; }      // ghost-town gunmen rise up into windows and over parapets
             type = rifle ? "rifleman" : "gunman";
             this.rifle = rifle;
             this.variant = variant ?? MathX.Pick(Characters.GunmanLooks);
@@ -287,6 +291,7 @@ namespace Schofield
             var dir = coach.pos - root.position;
             yaw = Mathf.LerpAngle(yaw * Mathf.Rad2Deg, Mathf.Atan2(dir.x, dir.z) * Mathf.Rad2Deg, 1 - Mathf.Exp(-4 * dt)) * Mathf.Deg2Rad;
             root.rotation = Quaternion.Euler(0, yaw * Mathf.Rad2Deg, 0);
+            if (popup && pop < 1) { pop = Mathf.Min(1, pop + dt * 2.5f); root.position = basePos + Vector3.up * (pop - 1) * 1.2f; }
             float dist = dir.magnitude;
             float range = rifle ? 190 : 70;
             losT -= dt;
@@ -355,6 +360,7 @@ namespace Schofield
         readonly List<WaveDef> waves = new List<WaveDef>();
         readonly List<(float t, bool rider, System.Action fn)> spawnQ = new List<(float, bool, System.Action)>();
         int riderCap = 5;
+        readonly HashSet<Vector3> usedSpawns = new HashSet<Vector3>();
         bool engaged, bartSeen;
 
         public Enemies(Game game)
@@ -406,6 +412,26 @@ namespace Schofield
                     while (used.Contains(slot)) slot++;
                     int sl = slot++; float side = i % 2 == 0 ? 1 : -1; string from = w.from;
                     spawnQ.Add((i * 0.9f, true, () => list.Add(new Rider(g, from, sl, side))));
+                }
+            }
+            else if (w.type == "town")
+            {
+                // gunmen in the ghost town's windows and on its roofs, each waiting for the coach to come near
+                g.hud.Banner(g.route.def.name, "Nobody lives here anymore", 3);
+                var free = new List<(Vector3 pos, Vector3 face, float s, bool roof)>();
+                foreach (var sp in g.towns.spawns) if (!usedSpawns.Contains(sp.pos)) free.Add(sp);
+                for (int i = free.Count - 1; i > 0; i--) { int j = Random.Range(0, i + 1); (free[i], free[j]) = (free[j], free[i]); }
+                for (int i = 0; i < Mathf.Min(n, free.Count); i++)
+                {
+                    var sp = free[i];
+                    usedSpawns.Add(sp.pos);
+                    void Watch()
+                    {
+                        if (g.over) return;
+                        if (g.coach.s > sp.s - 75) { var e = new Gunman(g, sp.pos, sp.face, Random.value < 0.3f, null, null, true) { s = sp.s }; list.Add(e); }
+                        else spawnQ.Add((0.25f, false, new System.Action(Watch)));
+                    }
+                    spawnQ.Add((0f, false, new System.Action(Watch)));
                 }
             }
             else if (w.type == "ridge")
