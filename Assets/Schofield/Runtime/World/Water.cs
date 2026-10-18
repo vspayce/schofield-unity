@@ -34,6 +34,7 @@ namespace Schofield
         readonly List<(GameObject go, Vector3 c, float r)> chunks = new List<(GameObject, Vector3, float)>();
         readonly List<Fall> falls = new List<Fall>();
         readonly Pool mist;
+        Material riverMat;
         readonly Color foamCol, mistCol;
         float emitAcc, roadAcc, coachAcc, rapidAcc, dripAcc;
         bool coachIn;
@@ -70,7 +71,8 @@ namespace Schofield
                 owned.Add(m);
                 return m;
             }
-            BuildRiver(Mat(0));
+            riverMat = Mat(0);
+            BuildRiver(riverMat);
             if (route.hasFalls) BuildFalls(Mat(1), Mat(2));
 
             mist = new Pool(Application.isMobilePlatform ? 160 : 260, false);
@@ -242,7 +244,7 @@ namespace Schofield
             var f = Resolve(route.fallsS, 0, route.fallsWidth, route.fallsDrop + 5, 11);
             falls.Add(f);
             BuildArch(f);
-            const int SHELLS = 3, ROWS = 12, LIP = 2, COLS = 15, VR = ROWS + LIP + 1;
+            const int SHELLS = 3, ROWS = 26, LIP = 3, COLS = 30, VR = ROWS + LIP + 1;
             var v = new List<Vector3>(); var u0 = new List<Vector2>(); var u1 = new List<Vector2>(); var u2 = new List<Vector2>(); var t = new List<int>();
             for (int k = 0; k < SHELLS; k++)
             {
@@ -281,9 +283,38 @@ namespace Schofield
             m.RecalculateNormals(); m.RecalculateBounds(); owned.Add(m);
             MeshKit.Show("Falls", m, curtainMat, root.transform, false);
 
+            // the stream that feeds it: a short fast run across the top of the arch to the lip
+            {
+                const int SR = 8, SC = 9;
+                var sv = new List<Vector3>(); var su0 = new List<Vector2>(); var su1 = new List<Vector2>(); var su2 = new List<Vector2>(); var st = new List<int>();
+                float l0 = f.Lat(0);
+                for (int r = 0; r <= SR; r++)
+                {
+                    float back = -10f * (1 - r / (float)SR);          // metres upstream of the lip
+                    for (int c = 0; c <= SC; c++)
+                    {
+                        float u = c / (float)SC, e = Mathf.Abs(u * 2 - 1);
+                        float ll = l0 + (u - 0.5f) * f.halfW * 1.9f;
+                        float y = f.lipY + 0.35f - back * 0.04f - e * e * 0.25f;
+                        sv.Add(new Vector3(f.cx + f.ax * ll + f.nx * (back - 0.6f), y, f.cz + f.az * ll + f.nz * (back - 0.6f)));
+                        su0.Add(new Vector2(back, e)); su1.Add(new Vector2(0.9f, 0.85f)); su2.Add(new Vector2(f.nx, f.nz));
+                    }
+                }
+                for (int r = 0; r < SR; r++) for (int c = 0; c < SC; c++)
+                    {
+                        int a = r * (SC + 1) + c, b = a + 1, d2 = a + SC + 1, e2 = d2 + 1;
+                        st.AddRange(new[] { a, d2, b, b, d2, e2 });
+                    }
+                var sm = new Mesh { name = "Falls stream" };
+                sm.SetVertices(sv); sm.SetUVs(0, su0); sm.SetUVs(1, su1); sm.SetUVs(2, su2); sm.SetTriangles(st, 0);
+                var up = new Vector3[sv.Count]; for (int q = 0; q < up.Length; q++) up[q] = Vector3.up; sm.normals = up;
+                sm.RecalculateBounds(); owned.Add(sm);
+                MeshKit.Show("Falls Stream", sm, riverMat, root.transform, false);
+            }
+
             // the churning pool where the sheet lands
             const int RING = 6, SEG = 22;
-            float pRad = Mathf.Max(6, f.halfW * 1.35f);
+            float pRad = Mathf.Max(8, f.halfW * 1.7f);
             var foot = f.At(1);
             var pv = new List<Vector3>(); var pu0 = new List<Vector2>(); var pu1 = new List<Vector2>(); var pt = new List<int>();
             for (int ri = 0; ri <= RING; ri++)

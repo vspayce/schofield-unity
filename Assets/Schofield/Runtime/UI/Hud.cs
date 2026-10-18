@@ -27,7 +27,9 @@ namespace Schofield
         float bannerUntil, hpFlashUntil, coachFlashUntil; bool hpHeavy; int lastCoach = -1;
         WeaponDef weapon; string ammoMode;
         readonly Dictionary<string, Image> buttons = new Dictionary<string, Image>();
-        Text dynCount, dynCountTouch;
+        Text dynCount, dynCountTouch, hint; bool hintPad = true;
+        public const string PadHint = "Left stick aim · RT fire · LT scope · X reload · Y swap · LB Dead Eye · RB dynamite · Right stick up whip, down rein · Menu pause";
+        const string KeysHint = "Mouse aim · Click fire · F scope · R reload · Q swap · E Dead Eye · G dynamite · Hold S to stop, W to whip · Esc pause · or use a controller";
         readonly GameInput input;
 
         public Hud(GameInput input)
@@ -117,9 +119,8 @@ namespace Schofield
             if (!input.touch) dynCount = UIKit.Txt("Dynamite", safe, new Vector2(1, 1), new Vector2(-40, -214), new Vector2(240, 24), "", 15, UIKit.Paper, TextAnchor.MiddleRight, true);
             if (dynCount) dynCount.rectTransform.pivot = new Vector2(1, 0.5f);
             if (input.touch) TouchButtons();
-            else if (!input.pad)
-                UIKit.Txt("Hint", safe, new Vector2(0.5f, 0), new Vector2(0, 16), new Vector2(1200, 22),
-                    "Mouse aim · Click fire · F scope · R reload · Q swap · E Dead Eye · G dynamite · Hold S to stop, W to whip · Esc pause · or use a controller", 13, new Color(1, 1, 1, 0.55f));
+            else
+                hint = UIKit.Txt("Hint", safe, new Vector2(0.5f, 0), new Vector2(0, 16), new Vector2(1240, 22), "", 13, new Color(1, 1, 1, 0.55f));
             Show(false);
         }
 
@@ -196,7 +197,7 @@ namespace Schofield
 
         public void SetDynamite(int n)
         {
-            if (dynCount) dynCount.text = n > 0 ? $"DYNAMITE  {n}   (G)" : "";
+            if (dynCount) dynCount.text = n > 0 ? $"DYNAMITE  {n}   ({(input.pad ? "RB" : "G")})" : "";
             if (dynCountTouch) dynCountTouch.text = n.ToString();
             if (buttons.TryGetValue("dynamite", out var b)) b.color = n > 0 ? new Color(0.42f, 0.16f, 0.1f, 0.85f) : new Color(0.16f, 0.1f, 0.06f, 0.3f);
         }
@@ -255,6 +256,7 @@ namespace Schofield
 
         public void Update(Game game)
         {
+            if (hint && (hint.text.Length == 0 || hintPad != input.pad)) { hintPad = input.pad; hint.text = input.pad ? PadHint : KeysHint; game.dynamite?.Refresh(); }
             float now = Time.unscaledTime;
             var p = game.player; var c = game.coach; var cam = game.cam;
             void Bar(Image f, float v) { f.rectTransform.sizeDelta = new Vector2(150 * Mathf.Clamp01(v), 10); }
@@ -312,41 +314,38 @@ namespace Schofield
             Brackets(game); Chevrons(game); Marks(game);
         }
 
-        // a bracket around every rifleman who can see you, sized to how big he looks; red before he fires
+        // a small down-pointing triangle over every rifleman who can see you, sized to his distance;
+        // red before he fires
         void Brackets(Game game)
         {
             var cam = game.cam;
-            float H = ((RectTransform)canvas.transform).rect.height;
-            float perM = H / (2 * Mathf.Tan(cam.fieldOfView * 0.5f * Mathf.Deg2Rad));
             int n = 0;
             foreach (var e in game.enemies.list)
             {
                 if (!e.alive || e.type == "rider" || !e.los) continue;
                 float dist = Vector3.Distance(e.spheres[1].c, game.player.camPos);
                 if (dist > (e.Rifle ? 320 : 80)) continue;
-                var sp = cam.WorldToScreenPoint(e.spheres[1].c);
+                var head = e.spheres[0].c + Vector3.up * (0.55f + dist * 0.004f);
+                var sp = cam.WorldToScreenPoint(head);
                 if (sp.z < 0 || sp.x < 0 || sp.y < 0 || sp.x > Screen.width || sp.y > Screen.height) continue;
-                float px = Mathf.Clamp(1.9f / dist * perM, 30, 140);
+                float px = Mathf.Lerp(30, 16, Mathf.InverseLerp(20, 260, dist));
                 while (brackets.Count <= n)
                 {
-                    var b = UIKit.Rect("bracket", shooterLayer, new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.one * 40);
-                    foreach (var (amin, amax, sz) in new[] { (new Vector2(0, 1), new Vector2(1, 1), new Vector2(0, 2)), (new Vector2(0, 0), new Vector2(1, 0), new Vector2(0, 2)),
-                                                            (new Vector2(0, 0), new Vector2(0, 1), new Vector2(2, 0)), (new Vector2(1, 0), new Vector2(1, 1), new Vector2(2, 0)) })
-                    {
-                        var edge = UIKit.Img("edge", b, Vector2.zero, Vector2.zero, sz, null, Color.white);
-                        edge.rectTransform.anchorMin = amin; edge.rectTransform.anchorMax = amax; edge.rectTransform.pivot = new Vector2(0.5f, 0.5f);
-                        edge.rectTransform.anchoredPosition = Vector2.zero; edge.rectTransform.sizeDelta = sz;
-                    }
-                    UIKit.Txt("d", b, new Vector2(0.5f, 1), new Vector2(0, 12), new Vector2(120, 20), "", 14, UIKit.Paper, TextAnchor.MiddleCenter, true);
+                    var b = UIKit.Rect("marker", shooterLayer, new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.one * 24, new Vector2(0.5f, 0));
+                    var tri = UIKit.Img("tri", b, new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.one * 24, UIKit.TriDown, Color.white);
+                    tri.rectTransform.anchorMin = Vector2.zero; tri.rectTransform.anchorMax = Vector2.one; tri.rectTransform.sizeDelta = Vector2.zero;
+                    var sh = tri.gameObject.AddComponent<Shadow>(); sh.effectColor = new Color(0, 0, 0, 0.55f); sh.effectDistance = new Vector2(1.5f, -1.5f);
+                    UIKit.Txt("d", b, new Vector2(0.5f, 1), new Vector2(0, 10), new Vector2(120, 18), "", 13, UIKit.Paper, TextAnchor.MiddleCenter, true);
                     brackets.Add(b);
                 }
                 var br = brackets[n++];
                 br.gameObject.SetActive(true);
                 br.anchoredPosition = ToCanvas(sp);
-                br.sizeDelta = new Vector2(px, px * 1.15f);
-                var ec = e.glintT > 0 ? UIKit.Blood : new Color(1, 0.9f, 0.7f, 0.85f);
-                foreach (var im in br.GetComponentsInChildren<Image>()) im.color = ec;
-                br.GetComponentInChildren<Text>().text = Mathf.RoundToInt(dist) + "m";
+                br.sizeDelta = new Vector2(px, px * 0.85f);
+                var ec = e.glintT > 0 ? UIKit.Blood : new Color(1, 0.9f, 0.7f, 0.9f);
+                br.GetComponentInChildren<Image>().color = ec;
+                var label = br.GetComponentInChildren<Text>();
+                label.text = dist > 40 ? Mathf.RoundToInt(dist) + "m" : "";
             }
             for (int i = n; i < brackets.Count; i++) brackets[i].gameObject.SetActive(false);
         }

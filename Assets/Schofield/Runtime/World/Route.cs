@@ -61,6 +61,7 @@ namespace Schofield
         }
 
         // ------------------------------------------------------------------ path
+        public static float TrestleKink = 0.45f;
         void BuildPath()
         {
             var pts = new System.Collections.Generic.List<Vector3>();
@@ -72,7 +73,17 @@ namespace Schofield
                 pts.Add(new Vector3(x, 0, z));
                 float t = i * step;
                 bool inTown = townS0 >= 0 && t > townS0 - 120 && t < townS1 + 60;
-                bool straight = i < 3 || t > len - 60 || inTown;
+                // Thunder Gorge: run dead straight at the trestle for the last few hundred metres and across it,
+                // so it's in plain view down the road long before the wheels hit the planks
+                // ...then a bend just before the deck, so you see the trestle side-on across the cut
+                bool trestle = false;
+                if (def.gorge != null && def.gorge.bridgeAt >= 0)
+                {
+                    float bs = len * def.gorge.bridgeAt, b0 = bs - def.gorge.bridgeLength * 0.5f;
+                    trestle = t > b0 - 340 && t < bs + def.gorge.bridgeLength * 0.5f + 20;
+                    if (t <= b0 - 90 && t + step > b0 - 90) h += TrestleKink * def.gorge.side;
+                }
+                bool straight = i < 3 || t > len - 60 || inTown || trestle;
                 if (!straight) h += (noise.Noise(i * 0.23f, 5.1f) * 0.9f + (rand.Next() - 0.5f) * 0.35f) * def.winding;
                 x += Mathf.Sin(h) * step; z += Mathf.Cos(h) * step;
             }

@@ -123,7 +123,7 @@ namespace Schofield.EditorTools
             var so = new SerializedObject(ao);
             void F(string n, float v) { var p = so.FindProperty("m_Settings." + n); if (p != null) { if (p.propertyType == SerializedPropertyType.Float) p.floatValue = v; else if (p.propertyType == SerializedPropertyType.Boolean) p.boolValue = v != 0; else p.intValue = (int)v; } }
             F("Downsample", 1); F("AfterOpaque", 0); F("Source", 0);           // depth
-            F("NormalSamples", 1); F("Intensity", 0.7f); F("DirectLightingStrength", 0.3f);
+            F("NormalSamples", 1); F("Intensity", 0.45f); F("DirectLightingStrength", 0.15f);
             F("Radius", 0.6f); F("Falloff", 60); F("Samples", 1); F("BlurQuality", 1); F("AOMethod", 1);
             so.ApplyModifiedPropertiesWithoutUndo();
             EditorUtility.SetDirty(ao); EditorUtility.SetDirty(rd);

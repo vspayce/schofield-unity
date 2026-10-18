@@ -21,6 +21,8 @@ namespace Schofield
             g.hud.SetDynamite(stock);
         }
 
+        public void Refresh() => g.hud.SetDynamite(stock);
+
         public bool Throw()
         {
             if (stock <= 0 || g.over) { if (stock <= 0) g.hud.Banner("No dynamite left", "", 1.2f); return false; }

@@ -11,7 +11,7 @@ namespace Schofield
     {
         public static Sound I;
         public float musicVolume = 0.55f, sfxVolume = 1f, master = 0.9f;
-        float rate = 1;
+        float rate = 1; int logged;
         readonly List<AudioSource> pool = new List<AudioSource>();
         readonly Dictionary<AudioSource, float> basePitch = new Dictionary<AudioSource, float>();
         class LoopState { public AudioSource src; public float vol, target, fadeRate, rate = 1; public bool music, stopping; }
@@ -36,6 +36,10 @@ namespace Schofield
             try { SC_PlaybackAudio(); } catch { }
 #endif
             for (int i = 0; i < 28; i++) I.NewSource();
+            var cfg = AudioSettings.GetConfiguration();
+            var test = Assets.Clip("whip_crack");
+            Debug.Log($"[audio] rate={AudioSettings.outputSampleRate} speaker={cfg.speakerMode} driver={AudioSettings.driverCapabilities} dsp={cfg.dspBufferSize} paused={AudioListener.pause} vol={AudioListener.volume} music={I.musicVolume} sfx={I.sfxVolume} clip={(test ? test.loadState + "/" + test.length.ToString("F2") + "s/" + test.channels + "ch" : "MISSING")}");
+            AudioSettings.OnAudioConfigurationChanged += changed => Debug.Log($"[audio] configuration changed (device {changed}) rate={AudioSettings.outputSampleRate} speaker={AudioSettings.GetConfiguration().speakerMode}");
             return I;
         }
 
@@ -60,7 +64,8 @@ namespace Schofield
         {
             var clip = Assets.Clip(name);
             onPlay?.Invoke(name);
-            if (!clip) return;
+            if (!clip) { if (Debug.isDebugBuild) Debug.Log("[audio] missing clip " + name); return; }
+            if (Debug.isDebugBuild && logged++ < 6) Debug.Log($"[audio] play {name} {clip.loadState} vol={volume * (music ? musicVolume : sfxVolume) * master:F2} listenerPaused={AudioListener.pause}");
             var s = Free();
             s.clip = clip; s.loop = false;
             s.volume = Mathf.Clamp01(volume * (music ? musicVolume : sfxVolume) * master);

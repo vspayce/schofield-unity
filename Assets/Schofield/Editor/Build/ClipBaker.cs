@@ -27,6 +27,21 @@ namespace Schofield.EditorTools
             var json = File.ReadAllText(file);
             int n = 0;
             foreach (var (model, modelJson) in Objects(json))
+            {
+                // three.js sanitises node names (drops . [ ] : / and turns spaces into _): map each of its paths
+                // back to the real one in the imported model
+                var map = new Dictionary<string, string>();
+                var prefab = AssetDatabase.LoadAssetAtPath<GameObject>($"Assets/Schofield/Resources/Models/{model}.glb");
+                if (prefab)
+                    foreach (var t in prefab.GetComponentsInChildren<Transform>(true))
+                    {
+                        if (t == prefab.transform) continue;
+                        string real = AnimationUtility.CalculateTransformPath(t, prefab.transform);
+                        var parts = real.Split('/');
+                        for (int i = 0; i < parts.Length; i++) parts[i] = Sanitize(parts[i]);
+                        map[string.Join("/", parts)] = real;
+                    }
+                int missing = 0;
                 foreach (var (clipName, clipJson) in Objects(modelJson))
                 {
                     var c = JsonUtility.FromJson<Clip>(clipJson);
@@ -34,6 +49,7 @@ namespace Schofield.EditorTools
                     var clip = new AnimationClip { name = clipName, frameRate = c.fps, legacy = false };
                     foreach (var t in c.tracks)
                     {
+                        if (map.Count > 0) { if (map.TryGetValue(t.path, out var real)) t.path = real; else if (map.ContainsValue(t.path) == false) { missing++; continue; } }
                         int size = t.prop == "quaternion" ? 4 : 3;
                         string[] props = t.prop == "quaternion" ? new[] { "m_LocalRotation.x", "m_LocalRotation.y", "m_LocalRotation.z", "m_LocalRotation.w" }
                             : t.prop == "position" ? new[] { "m_LocalPosition.x", "m_LocalPosition.y", "m_LocalPosition.z" }
@@ -64,8 +80,17 @@ namespace Schofield.EditorTools
                     AssetDatabase.CreateAsset(clip, outPath);
                     n++;
                 }
+                if (missing > 0) Debug.LogWarning($"[Clips] {model}: {missing} tracks had no matching node");
+            }
             AssetDatabase.SaveAssets();
             Debug.Log($"[Clips] rebuilt {n} clips from three.js-decoded animation");
+        }
+
+        static string Sanitize(string name)
+        {
+            var sb = new System.Text.StringBuilder();
+            foreach (char ch in name) { if (char.IsWhiteSpace(ch)) sb.Append('_'); else if ("[].:/".IndexOf(ch) < 0) sb.Append(ch); }
+            return sb.ToString();
         }
 
         /// the top-level members of a JSON object, as (key, raw value)

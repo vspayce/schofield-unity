@@ -106,14 +106,14 @@ namespace Schofield
             {
                 // the web game's Narkowicz ACES had no 0.6 pre-scale, so it sat ~2/3 stop brighter than URP's
                 ca.postExposure.Override(Mathf.Log(L.exposure, 2) + 0.6f);
-                ca.contrast.Override((L.gradeContrast - 1) * 70f + 4);
+                ca.contrast.Override((L.gradeContrast - 1) * 45f);
                 ca.saturation.Override((L.gradeSat - 1) * 100f + 4);
                 ca.colorFilter.Override(new Color(L.gradeGain.x + L.gradeLift.x * 2, L.gradeGain.y + L.gradeLift.y * 2, L.gradeGain.z + L.gradeLift.z * 2));
             }
             // warm low suns, cooler high ones
             if (p.TryGet(out WhiteBalance wb)) wb.temperature.Override(Mathf.Lerp(12, -2, Mathf.InverseLerp(4, 25, L.sunElev)));
             if (p.TryGet(out ShadowsMidtonesHighlights smh))
-                smh.shadows.Override(new Vector4(L.tintShadow.x, L.tintShadow.y, L.tintShadow.z, 0));
+                smh.shadows.Override(new Vector4(L.tintShadow.x, L.tintShadow.y, L.tintShadow.z, 0.12f));   // w lifts the shadow range
         }
 
         /// speed: the coach's speed over cruise, 0..1 — blur only when it's really flying

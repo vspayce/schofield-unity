@@ -20,6 +20,7 @@ namespace Schofield
         public bool enabled;
         public bool touch;            // a phone or tablet: show the buttons, aim assist
         public bool pad;              // last input came from a controller (aim assist, button hints)
+        public static bool TV => Application.platform == RuntimePlatform.tvOS;
         float dx, dy;
         bool fireHeld, firePressed, reload, swap, deadeye, scope, pause, whipKey, brakeKey, dynamite;
 
@@ -32,6 +33,7 @@ namespace Schofield
         {
             touch = Application.isMobilePlatform && Application.platform != RuntimePlatform.tvOS;
             sens = PlayerPrefs.GetFloat("schofield.sens", 1);
+            pad = TV;
             invertY = PlayerPrefs.GetInt("schofield.invertY", 0) == 1;
         }
 
@@ -67,11 +69,13 @@ namespace Schofield
         public void Poll(float rdt)
         {
             pause |= PausePressed();
+            if (TV) pad = true;        // the Apple TV is played with a controller; its remote isn't a keyboard
             if (!enabled) return;
             Keys();
             MouseAim();
             Pad(rdt);
             Touches();
+            if (TV) pad = true;
         }
 
         static bool PausePressed()
@@ -121,8 +125,9 @@ namespace Schofield
         {
             var g = Gamepad.current;
             if (g == null) return;
-            var st = g.rightStick.ReadValue();
-            var ls = g.leftStick.ReadValue();
+            // left stick aims; right stick up whips, down reins in
+            var st = g.leftStick.ReadValue();
+            var ls = g.rightStick.ReadValue();
             float mag = st.magnitude;
             if (mag > 0.12f)
             {
@@ -137,10 +142,11 @@ namespace Schofield
             if (trig) fireHeld = true; else if (padFire) fireHeld = false;
             padFire = trig;
             if (g.leftTrigger.wasPressedThisFrame) { scope = true; pad = true; }
-            if (g.rightShoulder.wasPressedThisFrame || g.buttonNorth.wasPressedThisFrame) { swap = true; pad = true; }
+            if (g.buttonNorth.wasPressedThisFrame) { swap = true; pad = true; }
+            if (g.rightShoulder.wasPressedThisFrame) { dynamite = true; pad = true; }
             if (g.leftShoulder.wasPressedThisFrame) { deadeye = true; pad = true; }
             if (g.buttonWest.wasPressedThisFrame) { reload = true; pad = true; }
-            if (g.dpad.up.wasPressedThisFrame || g.rightStickButton.wasPressedThisFrame) { dynamite = true; pad = true; }
+            if (g.dpad.left.wasPressedThisFrame || g.dpad.right.wasPressedThisFrame) { swap = true; pad = true; }
             bool whip = g.buttonSouth.isPressed || ls.y > 0.6f, brake = g.buttonEast.isPressed || ls.y < -0.6f;
             if (whip) held.Add("padwhip"); else held.Remove("padwhip");
             if (brake) held.Add("padbrake"); else held.Remove("padbrake");

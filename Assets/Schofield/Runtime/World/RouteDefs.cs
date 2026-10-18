@@ -81,8 +81,8 @@ namespace Schofield
                 railroad = new RailDef { at = 0.62f, workers = 7, train = true, cars = 3, gunmen = 4 },
                 light = new LightDef
                 {
-                    sunElev = 13, sunAzim = 230, sunColor = C("#ffc98a"), sunIntensity = 4.2f,
-                    hemiSky = C("#7f9fd0"), hemiGround = C("#5a3f24"), hemiIntensity = 0.7f, env = 0.3f, tintShadow = new Vector3(0.8f, 0.9f, 1.12f),
+                    sunElev = 20, sunAzim = 230, sunColor = C("#ffc98a"), sunIntensity = 4.2f,
+                    hemiSky = C("#7f9fd0"), hemiGround = C("#6a4f34"), hemiIntensity = 1.0f, env = 0.3f, tintShadow = new Vector3(0.8f, 0.9f, 1.12f),
                     zenith = C("#3f6ea8"), horizon = C("#f2c18c"), sunGlow = C("#ffb36b"), ground = C("#8a6a45"),
                     fog = C("#d8b48c"), fogDensity = 0.0017f, exposure = 0.95f, clouds = 0.45f,
                     gradeSat = 1.08f, gradeContrast = 1.15f, gradeGain = new Vector3(1.04f, 1.0f, 0.92f), gradeLift = new Vector3(0.008f, 0.004f, 0f),
@@ -126,10 +126,10 @@ namespace Schofield
                 wildlife = new WildDef(120, "goat", "goat", "goat", "bear", "hawk"),
                 light = new LightDef
                 {
-                    sunElev = 24, sunAzim = 150, sunColor = C("#ffe2c0"), sunIntensity = 3.0f,
-                    hemiSky = C("#9fb4d2"), hemiGround = C("#4d4a40"), hemiIntensity = 0.85f, env = 0.35f, tintShadow = new Vector3(0.8f, 0.9f, 1.12f),
+                    sunElev = 34, sunAzim = 150, sunColor = C("#ffe2c0"), sunIntensity = 3.0f,
+                    hemiSky = C("#9fb4d2"), hemiGround = C("#5f5a4c"), hemiIntensity = 1.15f, env = 0.35f, tintShadow = new Vector3(0.8f, 0.9f, 1.12f),
                     zenith = C("#4a6a92"), horizon = C("#b9c3cc"), sunGlow = C("#c9bba0"), ground = C("#5a5850"),
-                    fog = C("#8e9cae"), fogDensity = 0.0019f, exposure = 1.0f, clouds = 0.75f,
+                    fog = C("#a4b0bc"), fogDensity = 0.0014f, exposure = 1.12f, clouds = 0.75f,
                     gradeSat = 0.95f, gradeContrast = 1.14f, gradeGain = new Vector3(0.98f, 1.0f, 1.04f), gradeLift = new Vector3(0f, 0.004f, 0.012f),
                 },
                 terrain = new TerrainDef
@@ -167,10 +167,10 @@ namespace Schofield
                 ghostTownStart = 0.38f, ghostTownLength = 420,
                 light = new LightDef
                 {
-                    sunElev = 5, sunAzim = 260, sunColor = C("#ff9a55"), sunIntensity = 3.0f,
-                    hemiSky = C("#7d7fa8"), hemiGround = C("#6a4630"), hemiIntensity = 1.0f, tintShadow = new Vector3(0.8f, 0.9f, 1.12f),
+                    sunElev = 9, sunAzim = 260, sunColor = C("#ff9a55"), sunIntensity = 3.0f,
+                    hemiSky = C("#7d7fa8"), hemiGround = C("#7a5640"), hemiIntensity = 1.25f, tintShadow = new Vector3(0.8f, 0.9f, 1.12f),
                     zenith = C("#2e3f6e"), horizon = C("#f08a55"), sunGlow = C("#ff7a3a"), ground = C("#6a4a32"),
-                    fog = C("#c98a66"), fogDensity = 0.0021f, exposure = 1.1f, clouds = 0.55f,
+                    fog = C("#c98a66"), fogDensity = 0.0019f, exposure = 1.2f, clouds = 0.55f,
                     gradeSat = 1.12f, gradeContrast = 1.1f, gradeGain = new Vector3(1.06f, 0.97f, 0.9f), gradeLift = new Vector3(0.02f, 0.006f, 0.012f),
                 },
                 terrain = new TerrainDef
@@ -203,8 +203,8 @@ namespace Schofield
                 arches = new[] { new ArchDef(0.24f, 96, 30, 25), new ArchDef(0.57f, 88, 33, 27), new ArchDef(0.82f, 102, 29, 26) },
                 light = new LightDef
                 {
-                    sunElev = 16, sunAzim = 200, sunColor = C("#ffb070"), sunIntensity = 4.2f,
-                    hemiSky = C("#8aa2d6"), hemiGround = C("#8a4028"), hemiIntensity = 1.05f, env = 0.5f, tintShadow = new Vector3(0.82f, 0.9f, 1.1f),
+                    sunElev = 22, sunAzim = 200, sunColor = C("#ffb070"), sunIntensity = 4.2f,
+                    hemiSky = C("#8aa2d6"), hemiGround = C("#8a4a30"), hemiIntensity = 1.2f, env = 0.5f, tintShadow = new Vector3(0.82f, 0.9f, 1.1f),
                     zenith = C("#335c96"), horizon = C("#f5b07a"), sunGlow = C("#ff9848"), ground = C("#7a4028"),
                     fog = C("#c48a6a"), fogDensity = 0.0022f, exposure = 1.22f, clouds = 0.3f,
                     gradeSat = 1.02f, gradeContrast = 1.13f, gradeGain = new Vector3(1.05f, 0.98f, 0.9f), gradeLift = new Vector3(0.018f, 0.006f, 0f),
@@ -238,10 +238,10 @@ namespace Schofield
                 gorge = new GorgeDef { side = 1, depth = 27, bridgeAt = 0.22f, bridgeLength = 300, bridgeWidth = 8.4f, bridgeCutHalf = 46, bridgeDepth = 76, fallsAt = 0.54f, fallsDrop = 34, fallsWidth = 24 },
                 light = new LightDef
                 {
-                    sunElev = 19, sunAzim = 118, sunColor = C("#ffe6c4"), sunIntensity = 3.4f,
-                    hemiSky = C("#93b4d6"), hemiGround = C("#3f4a3a"), hemiIntensity = 0.95f, env = 0.4f, tintShadow = new Vector3(0.78f, 0.9f, 1.15f),
+                    sunElev = 32, sunAzim = 250, sunColor = C("#ffe6c4"), sunIntensity = 3.4f,
+                    hemiSky = C("#93b4d6"), hemiGround = C("#5a6450"), hemiIntensity = 1.1f, env = 0.45f, tintShadow = new Vector3(0.82f, 0.92f, 1.1f),
                     zenith = C("#3d6b9c"), horizon = C("#c9d7dc"), sunGlow = C("#ffd9a6"), ground = C("#4e5648"),
-                    fog = C("#a9bcc4"), fogDensity = 0.0021f, exposure = 1.0f, clouds = 0.6f,
+                    fog = C("#a9bcc4"), fogDensity = 0.0016f, exposure = 1.1f, clouds = 0.6f,
                     gradeSat = 1.1f, gradeContrast = 1.12f, gradeGain = new Vector3(0.98f, 1.02f, 1.04f), gradeLift = new Vector3(0.006f, 0.01f, 0.014f),
                 },
                 terrain = new TerrainDef

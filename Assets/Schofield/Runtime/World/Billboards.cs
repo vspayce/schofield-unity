@@ -37,7 +37,8 @@ namespace Schofield
                 root.position = at;
                 const float W = 11, H = 5.5f, bse = 3.2f;
                 float ground = float.MinValue;
-                foreach (float px in new[] { -W / 2 + 0.6f, W / 2 - 0.6f }) { var foot = root.TransformPoint(px, 0, 0); ground = Mathf.Max(ground, route.Height(foot.x, foot.z)); }
+                var feet = new float[2]; int fi = 0;
+                foreach (float px in new[] { -W / 2 + 0.6f, W / 2 - 0.6f }) { var foot = root.TransformPoint(px, 0, 0); feet[fi] = route.Height(foot.x, foot.z); ground = Mathf.Max(ground, feet[fi++]); }
                 at.y = ground + 0.15f; root.position = at;
                 var post = Assets.Lit(MathX.Hex("#4a3524"), 0.05f); var back = Assets.Lit(MathX.Hex("#6b5336"), 0);
                 face = Assets.Lit(ad.paper, 0.08f);
@@ -49,7 +50,13 @@ namespace Schofield
                     if (euler.HasValue) o.transform.localRotation = Quaternion.Euler(euler.Value);
                     o.GetComponent<Renderer>().sharedMaterial = m; return o;
                 }
-                foreach (float px in new[] { -W / 2 + 0.6f, W / 2 - 0.6f }) Box(new Vector3(px, (bse + H) / 2, 0), new Vector3(0.34f, bse + H, 0.34f), post);
+                // each post runs down to its own footing, so a board on a slope never hangs in the air
+                fi = 0;
+                foreach (float px in new[] { -W / 2 + 0.6f, W / 2 - 0.6f })
+                {
+                    float sink = at.y - feet[fi++] + 0.6f, len = bse + H + sink;
+                    Box(new Vector3(px, bse + H - len / 2, 0), new Vector3(0.34f, len, 0.34f), post);
+                }
                 foreach (float sx in new[] { -1f, 1f }) Box(new Vector3(sx * (W / 2 - 1.1f), bse * 0.85f, -1.2f), new Vector3(0.22f, 4.4f, 0.22f), post, new Vector3(-0.5f * Mathf.Rad2Deg, 0, 0));
                 Box(new Vector3(0, bse + H / 2, 0), new Vector3(W, H, 0.16f), back);
                 Box(new Vector3(0, bse + H / 2, 0.085f), new Vector3(W - 0.1f, H - 0.1f, 0.01f), face);

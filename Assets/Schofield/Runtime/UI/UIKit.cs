@@ -19,6 +19,15 @@ namespace Schofield
         public static Sprite Disc => disc ? disc : disc = Make(64, (x, y) => Mathf.Clamp01((1 - Mathf.Sqrt(x * x + y * y)) * 8));
         public static Sprite Ring => ring ? ring : ring = Make(128, (x, y) => { float r = Mathf.Sqrt(x * x + y * y); return Mathf.Clamp01((0.06f - Mathf.Abs(r - 0.9f)) * 40); });
 
+        static Sprite triDown;
+        /// a down-pointing marker triangle, soft-edged
+        public static Sprite TriDown => triDown ? triDown : triDown = Make(64, (x, y) =>
+        {
+            float w = 0.92f * (y + 0.82f) / 1.64f;
+            float d = Mathf.Min(0.82f - y, (w - Mathf.Abs(x)) * 0.87f);
+            return Mathf.Clamp01(d * 20);
+        });
+
         static Sprite Make(int n, System.Func<float, float, float> alpha)
         {
             var t = new Texture2D(n, n, TextureFormat.RGBA32, false) { wrapMode = TextureWrapMode.Clamp, filterMode = FilterMode.Bilinear };

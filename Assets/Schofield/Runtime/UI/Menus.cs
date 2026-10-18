@@ -353,12 +353,16 @@ namespace Schofield
             var p = NewPanel(true);
             bool touch = g.input.touch;
             T(p, new Vector2(0, 275), new Vector2(800, 50), "How to Ride Shotgun", 38, UIKit.Paper);
+            bool pad = !touch && (g.input.pad || GameInput.TV);
             string s = (touch
                 ? "<b>Aim:</b> drag anywhere on the right. Dragging from FIRE aims while you shoot.\n<b>Fire / Reload / Swap:</b> buttons at bottom right. Swap between your sidearm and long gun any time.\n<b>Whip / Rein:</b> buttons at left. Hold Rein to stop; whip to pull away. The team tires if you whip too long.\n"
-                : "<b>Aim:</b> mouse or right stick.  <b>Fire:</b> click or right trigger.  <b>Reload:</b> R.  <b>Swap:</b> Q.  <b>Whip:</b> W / Shift.  Hold <b>Rein:</b> S to stop.\n")
-                + $"<b>Scope:</b> {(touch ? "the scope button" : "F or left trigger")}, long guns only. Magnifies for the men on the ridges.\n"
-                + $"<b>Dead Eye:</b> {(touch ? "the eye button" : "E or left shoulder")}. Time slows. Sweep across outlaws to mark them, then fire to drop every one.\n"
-                + $"<b>Dynamite:</b> {(touch ? "the dynamite button" : "G")}. Three sticks per run; throw into a group to blast riders from their horses.\n\n"
+                : pad
+                ? "<b>Aim:</b> left stick.  <b>Fire:</b> right trigger (hold for the repeaters).  <b>Reload:</b> X.  <b>Swap guns:</b> Y.\n<b>Whip:</b> right stick up.  <b>Rein in:</b> right stick down; hold it to stop. The team tires if you whip too long.\n"
+                : "<b>Aim:</b> mouse.  <b>Fire:</b> click.  <b>Reload:</b> R.  <b>Swap:</b> Q.  <b>Whip:</b> W / Shift.  Hold <b>Rein:</b> S to stop.\n")
+                + $"<b>Scope:</b> {(touch ? "the scope button" : pad ? "left trigger" : "F")}, long guns only. Magnifies for the men on the ridges.\n"
+                + $"<b>Dead Eye:</b> {(touch ? "the eye button" : pad ? "left shoulder (LB)" : "E or right click")}. Time slows. Sweep across outlaws to mark them, then fire to drop every one.\n"
+                + $"<b>Dynamite:</b> {(touch ? "the dynamite button" : pad ? "right shoulder (RB)" : "G")}. Three sticks per run; throw into a group to blast riders from their horses.\n"
+                + (pad ? "<b>Pause:</b> the Menu button.\n\n" : "\n")
                 + "<b>Your health</b> heals itself after four seconds without being hit. Shoot a buffalo, bear or goat and the meat restores more.\n"
                 + "<b>The coach</b> does not heal on its own; at zero the run is over. It's patched +10 each time you clear a wave. Riders who reach the team hurt it badly, and so does running into anything on the road.\n\n"
                 + "<b>Riflemen</b> on the ridges flash a glint before they shoot and hit far harder than riders. Drop them first.\n"

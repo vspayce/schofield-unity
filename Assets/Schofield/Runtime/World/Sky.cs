@@ -37,13 +37,15 @@ namespace Schofield
             sun.color = L.sunColor;
             sun.intensity = L.sunIntensity / Mathf.PI * 1.15f;
             sun.shadows = LightShadows.Soft;
-            sun.shadowStrength = 0.85f;
+            sun.shadowStrength = 0.72f;
             sun.shadowBias = 0.4f; sun.shadowNormalBias = 0.6f;
             sun.transform.rotation = Quaternion.LookRotation(-sunDir);
             RenderSettings.sun = sun;
 
             RenderSettings.ambientMode = AmbientMode.Trilight;
-            float amb = (L.hemiIntensity / Mathf.PI + L.env * 0.45f) * 1.25f;   // a little more sky in the shade (AO takes some back)
+            // shade fill: the routes all run on low suns, so shadowed faces live on this — keep it generous enough
+            // that a cliff in shadow still reads as rock, not a black hole (AO takes some back)
+            float amb = Mathf.Max(0.9f, (L.hemiIntensity * 0.62f + L.env * 0.5f) * 1.3f);
             RenderSettings.ambientSkyColor = L.hemiSky * amb * 1.1f;
             RenderSettings.ambientEquatorColor = Color.Lerp(L.hemiSky, L.hemiGround, 0.5f) * amb;
             RenderSettings.ambientGroundColor = L.hemiGround * amb * 0.9f;
